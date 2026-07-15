@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   un-blocklist a release and let Lidarr retry it. Distinct from the
   dashboard's "Recent blocklist events" list, which is this app's own log
   of what it did, not a live view of Lidarr's blocklist state.
+- Repeat escalation: if the same album is blocklisted repeatedly (new
+  "Repeat threshold" setting, default 3), repeated failed imports stop
+  triggering a new search each time (blocklist only, shown on the
+  dashboard's new "Blocklist only" list), and repeated archive/executable
+  denials go further and have Lidarr unmonitor the album entirely (shown
+  on the dashboard's new "Ignore list"). Failed-import and denial counts
+  are tracked independently per album.
 
 ## [0.9.1] - 2026-07-15
 

@@ -17,6 +17,23 @@ runtime — no restart required. A separate **Blocklist** page shows
 Lidarr's actual blocklist (not just this app's log of it) and lets you
 remove entries to let Lidarr retry them.
 
+### Repeat escalation
+
+If the same album gets blocklisted repeatedly (the "Repeat threshold" in
+Settings, default 3), lidarr-watchdog stops just re-blocklisting it
+forever:
+
+- **Repeated failed imports** → blocklisted without triggering another
+  search (the album stays monitored) — shown on the dashboard's
+  **Blocklist only** list.
+- **Repeated archive/executable denials** → Lidarr is told to
+  **unmonitor the album entirely** (a real, visible change in your Lidarr
+  library — re-monitor it manually there if you want it back), since
+  re-searching keeps finding the same undesirable files — shown on the
+  dashboard's **Ignore list**.
+
+Failed-import and denial counts are tracked independently per album.
+
 ## Configuration
 
 The Lidarr URL, API key, check interval, archive/executable-denial

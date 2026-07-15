@@ -4,6 +4,7 @@ import sqlite3
 import threading
 
 DEFAULT_POLL_INTERVAL = 300
+DEFAULT_REPEAT_THRESHOLD = 3
 
 POLL_INTERVAL_UNIT_SECONDS = {
     "seconds": 1,
@@ -97,3 +98,12 @@ def get_skip_auth_for_local(conn: sqlite3.Connection) -> bool:
 
 def set_skip_auth_for_local(conn: sqlite3.Connection, value: bool) -> None:
     set(conn, "skip_auth_for_local", "1" if value else "0")
+
+
+def get_repeat_threshold(conn: sqlite3.Connection) -> int:
+    raw = get(conn, "repeat_threshold")
+    return int(raw) if raw else DEFAULT_REPEAT_THRESHOLD
+
+
+def set_repeat_threshold(conn: sqlite3.Connection, value: int) -> None:
+    set(conn, "repeat_threshold", str(value))

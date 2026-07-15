@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_event_table.html" import event_table %}
 {% block content %}
 
   {% if just_ran %}
@@ -28,29 +29,17 @@
   <h2>Recent blocklist events</h2>
   <p class="hint">This is lidarr-watchdog's own action log. To view or remove entries from
     Lidarr's actual blocklist, see the <a href="/blocklist">Blocklist</a> page.</p>
-  {% if events %}
-  <table>
-    <thead>
-      <tr><th>Time</th><th>Title</th><th>Messages</th></tr>
-    </thead>
-    <tbody>
-      {% for event in events %}
-      <tr>
-        <td>{{ event['occurred_at'] | event_time }}</td>
-        <td>{{ event['title'] }}</td>
-        <td>
-          {% set short = event['messages'] | short_message %}
-          {% if short != event['messages'] %}
-          <span class="msg-hoverable" title="{{ event['messages'] }}">{{ short }}</span>
-          {% else %}
-          {{ short }}
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="empty">No blocklist events yet.</p>
-  {% endif %}
+  {{ event_table(events, "No blocklist events yet.") }}
+
+  <h2>Blocklist only</h2>
+  <p class="hint">The same album was blocklisted repeatedly for failed imports until it hit the
+    repeat threshold (Settings) — these were blocklisted without triggering another search, since
+    re-searching kept failing for the same underlying reason. The album stays monitored.</p>
+  {{ event_table(blocklist_only_events, "No blocklist-only events yet.") }}
+
+  <h2>Ignore list</h2>
+  <p class="hint">The same album was denied (archive/executable) repeatedly until it hit the repeat
+    threshold (Settings) — Lidarr was told to stop monitoring the album entirely, since re-searching
+    kept finding the same undesirable files. Re-monitor it manually in Lidarr if you want it back.</p>
+  {{ event_table(ignore_events, "No ignored albums yet.") }}
 {% endblock %}

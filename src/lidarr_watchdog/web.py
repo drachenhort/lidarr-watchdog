@@ -197,6 +197,8 @@ def create_app(
             {
                 "last_check": history.get_last_check(conn),
                 "events": history.get_recent_events(conn),
+                "blocklist_only_events": history.get_recent_blocklist_only_events(conn),
+                "ignore_events": history.get_recent_ignore_events(conn),
                 "poll_interval_display": settings.format_poll_interval(
                     settings.get_poll_interval(conn)
                 ),
@@ -235,6 +237,7 @@ def create_app(
                 "deny_archives": settings.get_deny_archives(conn),
                 "deny_executables": settings.get_deny_executables(conn),
                 "skip_auth_for_local": settings.get_skip_auth_for_local(conn),
+                "repeat_threshold": settings.get_repeat_threshold(conn),
                 "saved": saved,
                 "test_result": None,
                 "auth_enabled": auth_enabled,
@@ -252,6 +255,7 @@ def create_app(
         deny_archives: str | None = Form(None),
         deny_executables: str | None = Form(None),
         skip_auth_for_local: str | None = Form(None),
+        repeat_threshold: int = Form(settings.DEFAULT_REPEAT_THRESHOLD),
     ):
         lidarr_url = lidarr_url.strip()
         unit_seconds = settings.POLL_INTERVAL_UNIT_SECONDS.get(poll_interval_unit)
@@ -266,6 +270,8 @@ def create_app(
             error = "Invalid check interval unit"
         elif total_seconds < 10:
             error = "Check interval must be at least 10 seconds"
+        elif repeat_threshold < 1:
+            error = "Repeat threshold must be at least 1"
 
         if error:
             return templates.TemplateResponse(
@@ -280,6 +286,7 @@ def create_app(
                     "deny_archives": deny_archives is not None,
                     "deny_executables": deny_executables is not None,
                     "skip_auth_for_local": skip_auth_for_local is not None,
+                    "repeat_threshold": repeat_threshold,
                     "saved": False,
                     "test_result": f"error: {error}",
                     "auth_enabled": auth_enabled,
@@ -295,6 +302,7 @@ def create_app(
         settings.set_deny_archives(conn, deny_archives is not None)
         settings.set_deny_executables(conn, deny_executables is not None)
         settings.set_skip_auth_for_local(conn, skip_auth_for_local is not None)
+        settings.set_repeat_threshold(conn, repeat_threshold)
 
         return RedirectResponse(url="/settings?saved=1", status_code=303)
 
@@ -308,6 +316,7 @@ def create_app(
         deny_archives: str | None = Form(None),
         deny_executables: str | None = Form(None),
         skip_auth_for_local: str | None = Form(None),
+        repeat_threshold: int = Form(settings.DEFAULT_REPEAT_THRESHOLD),
     ) -> HTMLResponse:
         effective_key = api_key.strip() or (settings.get_lidarr_api_key(conn) or "")
         result = _test_connection(lidarr_url.strip(), effective_key)
@@ -325,6 +334,7 @@ def create_app(
                 "deny_archives": deny_archives is not None,
                 "deny_executables": deny_executables is not None,
                 "skip_auth_for_local": skip_auth_for_local is not None,
+                "repeat_threshold": repeat_threshold,
                 "saved": False,
                 "test_result": result,
                 "auth_enabled": auth_enabled,

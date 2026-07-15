@@ -63,3 +63,13 @@ class LidarrClient:
             f"{self._base_url}/api/v1/blocklist/{blocklist_id}", timeout=30
         )
         response.raise_for_status()
+
+    def unmonitor_album(self, album_id: int) -> None:
+        response = self._session.get(f"{self._base_url}/api/v1/album/{album_id}", timeout=30)
+        response.raise_for_status()
+        album = response.json()
+        album["monitored"] = False
+        response = self._session.put(
+            f"{self._base_url}/api/v1/album/{album_id}", json=album, timeout=30
+        )
+        response.raise_for_status()

@@ -58,6 +58,18 @@
         releases.
       </p>
 
+      <label for="repeat_threshold">Repeat threshold</label>
+      <input type="number" id="repeat_threshold" name="repeat_threshold"
+             value="{{ repeat_threshold }}" min="1" required style="max-width: 8rem;">
+      <p class="hint">
+        If the same album is blocklisted this many times, lidarr-watchdog stops
+        auto-researching it. For plain failed imports, it just blocklists without
+        re-searching (see "Blocklist only" on the dashboard). For repeated
+        archive/executable denials, it goes further and unmonitors the album in
+        Lidarr entirely, since re-searching keeps finding the same undesirable
+        files (see "Ignore list" on the dashboard).
+      </p>
+
       {% if auth_enabled %}
       <label class="checkbox-label">
         <input type="checkbox" name="skip_auth_for_local" value="on" {% if skip_auth_for_local %}checked{% endif %}>

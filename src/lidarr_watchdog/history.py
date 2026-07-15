@@ -22,6 +22,32 @@ CREATE TABLE IF NOT EXISTS blocklist_events (
     title TEXT NOT NULL,
     messages TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS repeat_counts (
+    album_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (album_id, reason)
+);
+
+CREATE TABLE IF NOT EXISTS blocklist_only_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    occurred_at TEXT NOT NULL,
+    queue_id INTEGER NOT NULL,
+    album_id INTEGER,
+    title TEXT NOT NULL,
+    messages TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ignore_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    occurred_at TEXT NOT NULL,
+    queue_id INTEGER NOT NULL,
+    album_id INTEGER,
+    artist_id INTEGER,
+    title TEXT NOT NULL,
+    messages TEXT NOT NULL
+);
 """
 
 _write_lock = threading.Lock()
@@ -65,6 +91,66 @@ def get_last_check(conn: sqlite3.Connection) -> sqlite3.Row | None:
 def get_recent_events(conn: sqlite3.Connection, limit: int = 100) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT * FROM blocklist_events ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+
+
+def get_repeat_count(conn: sqlite3.Connection, album_id: int, reason: str) -> int:
+    row = conn.execute(
+        "SELECT count FROM repeat_counts WHERE album_id = ? AND reason = ?", (album_id, reason)
+    ).fetchone()
+    return row["count"] if row else 0
+
+
+def increment_repeat_count(conn: sqlite3.Connection, album_id: int, reason: str) -> int:
+    with _write_lock:
+        conn.execute(
+            "INSERT INTO repeat_counts (album_id, reason, count) VALUES (?, ?, 1) "
+            "ON CONFLICT(album_id, reason) DO UPDATE SET count = count + 1",
+            (album_id, reason),
+        )
+        conn.commit()
+    return get_repeat_count(conn, album_id, reason)
+
+
+def record_blocklist_only_event(
+    conn: sqlite3.Connection, *, queue_id: int, album_id: int | None, title: str, messages: str
+) -> None:
+    with _write_lock:
+        conn.execute(
+            "INSERT INTO blocklist_only_events (occurred_at, queue_id, album_id, title, messages) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (_now(), queue_id, album_id, title, messages),
+        )
+        conn.commit()
+
+
+def get_recent_blocklist_only_events(conn: sqlite3.Connection, limit: int = 100) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM blocklist_only_events ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+
+
+def record_ignore_event(
+    conn: sqlite3.Connection,
+    *,
+    queue_id: int,
+    album_id: int | None,
+    artist_id: int | None,
+    title: str,
+    messages: str,
+) -> None:
+    with _write_lock:
+        conn.execute(
+            "INSERT INTO ignore_events (occurred_at, queue_id, album_id, artist_id, title, messages) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (_now(), queue_id, album_id, artist_id, title, messages),
+        )
+        conn.commit()
+
+
+def get_recent_ignore_events(conn: sqlite3.Connection, limit: int = 100) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM ignore_events ORDER BY id DESC LIMIT ?", (limit,)
     ).fetchall()
 
 

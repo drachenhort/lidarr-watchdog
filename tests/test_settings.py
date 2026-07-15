@@ -91,3 +91,14 @@ def test_format_poll_interval_pluralizes():
     assert settings.format_poll_interval(60) == "1 minute"
     assert settings.format_poll_interval(30) == "30 seconds"
     assert settings.format_poll_interval(1) == "1 second"
+
+
+def test_get_repeat_threshold_defaults_when_unset():
+    conn = history.connect(":memory:")
+    assert settings.get_repeat_threshold(conn) == settings.DEFAULT_REPEAT_THRESHOLD
+
+
+def test_repeat_threshold_roundtrip():
+    conn = history.connect(":memory:")
+    settings.set_repeat_threshold(conn, 5)
+    assert settings.get_repeat_threshold(conn) == 5

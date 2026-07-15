@@ -102,6 +102,35 @@ def test_dashboard_shows_check_and_events():
     assert last_check["checked_at"] not in response.text  # raw ISO timestamp not shown
 
 
+def test_dashboard_shows_blocklist_only_and_ignore_sections():
+    conn = history.connect(":memory:")
+    settings.set(conn, "lidarr_url", "http://localhost:8686")
+    settings.set(conn, "lidarr_api_key", "secret")
+
+    client = TestClient(create_app(conn))
+    empty_response = client.get("/")
+    assert "No blocklist-only events yet." in empty_response.text
+    assert "No ignored albums yet." in empty_response.text
+
+    history.record_blocklist_only_event(
+        conn, queue_id=1, album_id=10, title="Repeat Offender", messages="Has missing tracks"
+    )
+    history.record_ignore_event(
+        conn,
+        queue_id=2,
+        album_id=20,
+        artist_id=5,
+        title="Always An Archive",
+        messages="Archive file detected",
+    )
+
+    response = client.get("/")
+    assert "Repeat Offender" in response.text
+    assert "Always An Archive" in response.text
+    assert "No blocklist-only events yet." not in response.text
+    assert "No ignored albums yet." not in response.text
+
+
 def test_dashboard_shows_full_message_as_hover_tooltip():
     conn = history.connect(":memory:")
     settings.set(conn, "lidarr_url", "http://localhost:8686")
@@ -167,6 +196,7 @@ def test_settings_page_defaults():
     assert "Lidarr API key" in response.text  # empty-state placeholder, not "unchanged"
     assert 'value="5"' in response.text  # default 300s displayed as 5 minutes
     assert "selected" in response.text
+    assert f'value="{settings.DEFAULT_REPEAT_THRESHOLD}"' in response.text
 
 
 def test_settings_page_masks_existing_api_key():
@@ -202,6 +232,45 @@ def test_save_settings_persists_and_redirects():
     assert settings.get_lidarr_api_key(conn) == "my-key"
     assert settings.get_poll_interval(conn) == 120
     assert settings.get_deny_archives(conn) is False
+    assert settings.get_repeat_threshold(conn) == settings.DEFAULT_REPEAT_THRESHOLD
+
+
+def test_save_settings_persists_custom_repeat_threshold():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+            "repeat_threshold": "5",
+        },
+        follow_redirects=False,
+    )
+
+    assert settings.get_repeat_threshold(conn) == 5
+
+
+def test_save_settings_rejects_repeat_threshold_below_one():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+            "repeat_threshold": "0",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Repeat threshold must be at least 1" in response.text
 
 
 def test_save_settings_supports_days_and_hours():

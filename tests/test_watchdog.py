@@ -50,16 +50,58 @@ def test_check_once_blocklists_and_requeues_failed_imports():
     assert client.removed == [(3, True, False)]
 
 
-def test_check_once_invokes_on_blocklisted_callback():
+def test_check_once_invokes_on_blocklisted_callback_with_reason():
     queue = [
         {"id": 1, "title": "Bad Album", "trackedDownloadState": "importFailed"},
     ]
     client = FakeLidarrClient(queue)
     seen = []
 
-    check_once(client, on_blocklisted=seen.append)
+    check_once(client, on_blocklisted=lambda record, reason: seen.append((record["id"], reason)))
 
-    assert [record["id"] for record in seen] == [1]
+    assert seen == [(1, "failed_import")]
+
+
+def test_check_once_passes_archive_and_executable_reasons():
+    queue = [
+        {"id": 1, "title": "Archive.Album.rar", "trackedDownloadState": "downloading"},
+        {"id": 2, "title": "Malware.Album.exe", "trackedDownloadState": "downloading"},
+    ]
+    client = FakeLidarrClient(queue)
+    seen = []
+
+    check_once(
+        client,
+        on_blocklisted=lambda record, reason: seen.append((record["id"], reason)),
+        deny_archives=True,
+        deny_executables=True,
+    )
+
+    assert seen == [(1, "archive"), (2, "executable")]
+
+
+def test_check_once_uses_resolve_skip_redownload_per_record():
+    queue = [
+        {"id": 1, "title": "First Offender", "trackedDownloadState": "importFailed"},
+        {"id": 2, "title": "Repeat Offender", "trackedDownloadState": "importFailed"},
+    ]
+    client = FakeLidarrClient(queue)
+
+    def resolve(record, reason):
+        return record["id"] == 2
+
+    check_once(client, resolve_skip_redownload=resolve)
+
+    assert client.removed == [(1, True, False), (2, True, True)]
+
+
+def test_check_once_defaults_skip_redownload_false_without_resolver():
+    queue = [{"id": 1, "title": "Bad Album", "trackedDownloadState": "importFailed"}]
+    client = FakeLidarrClient(queue)
+
+    check_once(client)
+
+    assert client.removed == [(1, True, False)]
 
 
 def test_is_archive_matches_common_extensions():

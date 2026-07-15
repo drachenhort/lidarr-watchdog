@@ -42,22 +42,31 @@ def synthetic_deny_reason(record: dict[str, Any], deny_archives: bool, deny_exec
     return None
 
 
+def _classify(record: dict[str, Any], deny_archives: bool, deny_executables: bool) -> str | None:
+    if is_failed_import(record):
+        return "failed_import"
+    if deny_archives and is_archive(record):
+        return "archive"
+    if deny_executables and is_executable(record):
+        return "executable"
+    return None
+
+
 def check_once(
     client: LidarrClient,
-    on_blocklisted: Callable[[dict[str, Any]], None] | None = None,
+    on_blocklisted: Callable[[dict[str, Any], str], None] | None = None,
     deny_archives: bool = False,
     deny_executables: bool = False,
+    resolve_skip_redownload: Callable[[dict[str, Any], str], bool] | None = None,
 ) -> int:
     queue = client.get_queue()
-    to_deny = [
-        record
-        for record in queue
-        if is_failed_import(record)
-        or (deny_archives and is_archive(record))
-        or (deny_executables and is_executable(record))
-    ]
+    to_deny = []
+    for record in queue:
+        reason = _classify(record, deny_archives, deny_executables)
+        if reason is not None:
+            to_deny.append((record, reason))
 
-    for record in to_deny:
+    for record, reason in to_deny:
         title = record.get("title", "<unknown>")
         messages = _status_messages(record)
         if not messages:
@@ -66,10 +75,11 @@ def check_once(
                 messages = [synthetic]
         logger.warning("Denying queue item: %s (%s)", title, "; ".join(messages) or "no details")
 
-        client.remove_from_queue(record["id"], blocklist=True, skip_redownload=False)
+        skip_redownload = resolve_skip_redownload(record, reason) if resolve_skip_redownload else False
+        client.remove_from_queue(record["id"], blocklist=True, skip_redownload=skip_redownload)
         logger.info("Blocklisted and requeued for search: %s", title)
 
         if on_blocklisted:
-            on_blocklisted(record)
+            on_blocklisted(record, reason)
 
     return len(to_deny)

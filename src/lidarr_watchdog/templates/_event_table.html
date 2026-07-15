@@ -1,0 +1,27 @@
+{% macro event_table(events, empty_message) %}
+  {% if events %}
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Title</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td>{{ event['occurred_at'] | event_time }}</td>
+        <td>{{ event['title'] }}</td>
+        <td>
+          {% set short = event['messages'] | short_message %}
+          {% if short != event['messages'] %}
+          <span class="msg-hoverable" title="{{ event['messages'] }}">{{ short }}</span>
+          {% else %}
+          {{ short }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{{ empty_message }}</p>
+  {% endif %}
+{% endmacro %}

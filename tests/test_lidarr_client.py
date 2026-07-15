@@ -1,3 +1,5 @@
+import json
+
 import responses
 
 from lidarr_watchdog.lidarr_client import LidarrClient
@@ -91,3 +93,33 @@ def test_remove_blocklist_entry_deletes_by_id():
 
     assert responses.calls[0].request.method == "DELETE"
     assert responses.calls[0].request.url == "http://lidarr.local/api/v1/blocklist/123"
+
+
+@responses.activate
+def test_unmonitor_album_fetches_then_puts_with_monitored_false():
+    responses.add(
+        responses.GET,
+        "http://lidarr.local/api/v1/album/55",
+        json={"id": 55, "title": "Some Album", "monitored": True, "artistId": 9},
+        status=200,
+    )
+    responses.add(
+        responses.PUT,
+        "http://lidarr.local/api/v1/album/55",
+        json={},
+        status=202,
+    )
+
+    client = LidarrClient("http://lidarr.local", "my-api-key")
+    client.unmonitor_album(55)
+
+    assert responses.calls[0].request.method == "GET"
+    put_request = responses.calls[1].request
+    assert put_request.method == "PUT"
+    body = json.loads(put_request.body)
+    assert body["monitored"] is False
+    # everything else about the album resource is preserved, not just
+    # the monitored flag, since Lidarr's PUT expects the full resource
+    assert body["id"] == 55
+    assert body["title"] == "Some Album"
+    assert body["artistId"] == 9
