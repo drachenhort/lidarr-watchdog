@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>lidarr-watchdog</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem auto;
+      max-width: 60rem;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: #fafafa;
+    }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; }
+    .status {
+      padding: 1rem;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    .status.error { border-color: #d33; background: #fff5f5; }
+    .status p { margin: 0.25rem 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #eee;
+      font-size: 0.9rem;
+    }
+    th { background: #f0f0f0; }
+    .empty { color: #777; }
+  </style>
+</head>
+<body>
+  <h1>lidarr-watchdog</h1>
+
+  <div class="status {{ 'error' if last_check and last_check['error'] else '' }}">
+    {% if last_check %}
+      <p>Last check: {{ last_check['checked_at'] }} — {{ last_check['failed_count'] }} failed import(s) handled</p>
+      {% if last_check['error'] %}<p>Last error: {{ last_check['error'] }}</p>{% endif %}
+    {% else %}
+      <p>No checks have run yet.</p>
+    {% endif %}
+    <p>Poll interval: {{ poll_interval }}s</p>
+  </div>
+
+  <h2>Recent blocklist events</h2>
+  {% if events %}
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Title</th><th>Messages</th></tr>
+    </thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td>{{ event['occurred_at'] }}</td>
+        <td>{{ event['title'] }}</td>
+        <td>{{ event['messages'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No blocklist events yet.</p>
+  {% endif %}
+</body>
+</html>

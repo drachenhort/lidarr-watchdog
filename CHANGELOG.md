@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - GitHub Actions workflow to run the test suite on push and pull request.
+- Web dashboard (FastAPI) showing the last queue check and recent blocklist
+  events, backed by a SQLite history store. Runs alongside the polling loop
+  in the same process, ready to run in a container.
 
 ## [0.2.0] - 2026-07-15
 

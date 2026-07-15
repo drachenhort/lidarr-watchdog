@@ -48,3 +48,15 @@ def test_check_once_blocklists_and_requeues_failed_imports():
 
     assert count == 1
     assert client.removed == [(3, True, False)]
+
+
+def test_check_once_invokes_on_blocklisted_callback():
+    queue = [
+        {"id": 1, "title": "Bad Album", "trackedDownloadState": "importFailed"},
+    ]
+    client = FakeLidarrClient(queue)
+    seen = []
+
+    check_once(client, on_blocklisted=seen.append)
+
+    assert [record["id"] for record in seen] == [1]
