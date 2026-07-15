@@ -38,15 +38,30 @@ mounted volume when running in a container) so history survives restarts.
 
 ## Docker
 
+Pull the published image (built and pushed automatically on every `vX.Y.Z`
+release tag):
+
+```sh
+docker pull ghcr.io/drachenhort/lidarr-watchdog:latest
+# or pin a version: ghcr.io/drachenhort/lidarr-watchdog:0.3.0
+```
+
+Or build it yourself:
+
 ```sh
 docker build -t lidarr-watchdog .
+```
+
+Run it:
+
+```sh
 docker run -d \
   --name lidarr-watchdog \
   -p 8000:8000 \
   -v lidarr-watchdog-data:/data \
   -e LIDARR_URL=http://lidarr:8686 \
   -e LIDARR_API_KEY=xxxx \
-  lidarr-watchdog
+  ghcr.io/drachenhort/lidarr-watchdog:latest
 ```
 
 The image stores its SQLite history at `/data/lidarr-watchdog.db` by

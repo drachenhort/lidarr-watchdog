@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Actions workflow to build and publish the Docker image to
+  `ghcr.io/drachenhort/lidarr-watchdog` on every `vX.Y.Z` release tag.
+
 ## [0.3.0] - 2026-07-15
 
 ### Added
