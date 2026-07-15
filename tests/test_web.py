@@ -2,7 +2,15 @@ import responses
 from fastapi.testclient import TestClient
 
 from lidarr_watchdog import history, settings
-from lidarr_watchdog.web import create_app
+from lidarr_watchdog.web import create_app, format_event_time
+
+
+def test_format_event_time_strips_seconds_and_offset():
+    assert format_event_time("2026-07-15T06:44:48.532920+00:00") == "2026-07-15 06:44"
+
+
+def test_format_event_time_falls_back_on_unparseable_input():
+    assert format_event_time("not-a-timestamp") == "not-a-timestamp"
 
 
 def test_healthz():
@@ -43,6 +51,10 @@ def test_dashboard_shows_check_and_events():
     assert "1 failed import(s) handled" in response.text
     assert "isn't configured" not in response.text
     assert "Run now" in response.text
+
+    event = history.get_recent_events(conn)[0]
+    assert format_event_time(event["occurred_at"]) in response.text
+    assert event["occurred_at"] not in response.text  # raw ISO timestamp not shown
 
 
 def test_dashboard_hides_run_now_when_unconfigured():

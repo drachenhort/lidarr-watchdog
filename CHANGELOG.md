@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of flat borders, a pill-style nav with an active-page indicator,
   a monospace scrollable panel for error tracebacks, and full dark-mode
   support via `prefers-color-scheme`.
+- Recent blocklist events table now shows timestamps as `YYYY-MM-DD HH:MM`
+  instead of the full ISO 8601 string with seconds/microseconds/offset.
 
 ## [0.7.0] - 2026-07-15
 

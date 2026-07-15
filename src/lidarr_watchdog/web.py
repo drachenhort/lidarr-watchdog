@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -32,9 +33,17 @@ def _test_connection(lidarr_url: str, api_key: str) -> str:
         return f"error: {exc}"
 
 
+def format_event_time(iso_timestamp: str) -> str:
+    try:
+        return datetime.fromisoformat(iso_timestamp).strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return iso_timestamp
+
+
 def create_app(conn: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="lidarr-watchdog")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    templates.env.filters["event_time"] = format_event_time
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, ran: bool = False) -> HTMLResponse:

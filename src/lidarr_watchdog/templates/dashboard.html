@@ -34,7 +34,7 @@
     <tbody>
       {% for event in events %}
       <tr>
-        <td>{{ event['occurred_at'] }}</td>
+        <td>{{ event['occurred_at'] | event_time }}</td>
         <td>{{ event['title'] }}</td>
         <td>{{ event['messages'] }}</td>
       </tr>
