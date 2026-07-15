@@ -117,6 +117,25 @@ def test_save_settings_enables_deny_archives_checkbox():
     assert settings.get_deny_archives(conn) is True
 
 
+def test_save_settings_enables_deny_executables_checkbox():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval": "300",
+            "deny_executables": "on",
+        },
+        follow_redirects=False,
+    )
+
+    assert settings.get_deny_executables(conn) is True
+    assert settings.get_deny_archives(conn) is False
+
+
 def test_save_settings_rejects_bad_url():
     conn = history.connect(":memory:")
     client = TestClient(create_app(conn))

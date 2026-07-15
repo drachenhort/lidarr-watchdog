@@ -5,18 +5,20 @@ actually failed (queue `trackedDownloadState` of `importFailed`), blocklists
 the release and lets Lidarr automatically search for a replacement. Other
 queue warnings (stalled/failed downloads, pending manual import, etc.) are
 left alone. Optionally, it can also proactively deny any queue item that's
-an archive file (`.rar`/`.zip`/`.7z`) — see Settings below.
+an archive (`.rar`/`.zip`/`.7z`) or executable (`.exe`/`.msi`/`.bat`/...)
+file — see Settings below.
 
 A web dashboard shows the last check and recent blocklist events, and a
 Settings page lets you configure the Lidarr connection, check interval,
-and archive-denial toggle at runtime — no restart required.
+and the archive/executable-denial toggles at runtime — no restart
+required.
 
 ## Configuration
 
-The Lidarr URL, API key, check interval, and archive-denial toggle are all
-stored in the app's SQLite database and are editable live from the
-**Settings** page (`/settings`) in the dashboard — changes take effect on
-the next poll cycle, no restart needed.
+The Lidarr URL, API key, check interval, and archive/executable-denial
+toggles are all stored in the app's SQLite database and are editable live
+from the **Settings** page (`/settings`) in the dashboard — changes take
+effect on the next poll cycle, no restart needed.
 
 Environment variables only *seed* those values the first time the app
 starts (useful for Docker/first-run setup); once a value has been saved via

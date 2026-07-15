@@ -10,7 +10,7 @@ import uvicorn
 from lidarr_watchdog import history, settings
 from lidarr_watchdog.config import Config
 from lidarr_watchdog.lidarr_client import LidarrClient
-from lidarr_watchdog.watchdog import check_once, is_archive
+from lidarr_watchdog.watchdog import check_once, synthetic_deny_reason
 from lidarr_watchdog.web import create_app
 
 logger = logging.getLogger(__name__)
@@ -24,20 +24,22 @@ def resolve_client(conn: sqlite3.Connection) -> LidarrClient | None:
     return LidarrClient(url, api_key)
 
 
-def _event_messages(record: dict) -> str:
+def _event_messages(record: dict, deny_archives: bool, deny_executables: bool) -> str:
     messages = "; ".join(
         message
         for status_message in record.get("statusMessages", [])
         for message in status_message.get("messages", [])
     )
-    if not messages and is_archive(record):
-        return "Archive file detected (deny archives is enabled)"
+    if not messages:
+        return synthetic_deny_reason(record, deny_archives, deny_executables) or ""
     return messages
 
 
 def check_and_record(client: LidarrClient, conn: sqlite3.Connection) -> int:
     error = None
     failed_count = 0
+    deny_archives = settings.get_deny_archives(conn)
+    deny_executables = settings.get_deny_executables(conn)
     try:
         failed_count = check_once(
             client,
@@ -45,9 +47,10 @@ def check_and_record(client: LidarrClient, conn: sqlite3.Connection) -> int:
                 conn,
                 queue_id=record["id"],
                 title=record.get("title", "<unknown>"),
-                messages=_event_messages(record),
+                messages=_event_messages(record, deny_archives, deny_executables),
             ),
-            deny_archives=settings.get_deny_archives(conn),
+            deny_archives=deny_archives,
+            deny_executables=deny_executables,
         )
     except Exception:
         logger.exception("Error while checking queue")

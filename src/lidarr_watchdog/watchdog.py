@@ -9,6 +9,7 @@ from lidarr_watchdog.lidarr_client import LidarrClient
 logger = logging.getLogger(__name__)
 
 ARCHIVE_EXTENSION_RE = re.compile(r"\.(rar|zip|7z|r\d{2,3})$", re.IGNORECASE)
+EXECUTABLE_EXTENSION_RE = re.compile(r"\.(exe|msi|bat|cmd|com|scr|vbs|ps1)$", re.IGNORECASE)
 
 
 def is_failed_import(record: dict[str, Any]) -> bool:
@@ -20,6 +21,11 @@ def is_archive(record: dict[str, Any]) -> bool:
     return bool(ARCHIVE_EXTENSION_RE.search(title))
 
 
+def is_executable(record: dict[str, Any]) -> bool:
+    title = record.get("title") or ""
+    return bool(EXECUTABLE_EXTENSION_RE.search(title))
+
+
 def _status_messages(record: dict[str, Any]) -> list[str]:
     return [
         message
@@ -28,23 +34,36 @@ def _status_messages(record: dict[str, Any]) -> list[str]:
     ]
 
 
+def synthetic_deny_reason(record: dict[str, Any], deny_archives: bool, deny_executables: bool) -> str | None:
+    if deny_archives and is_archive(record):
+        return "Archive file detected (deny archives is enabled)"
+    if deny_executables and is_executable(record):
+        return "Executable file detected (deny executables is enabled)"
+    return None
+
+
 def check_once(
     client: LidarrClient,
     on_blocklisted: Callable[[dict[str, Any]], None] | None = None,
     deny_archives: bool = False,
+    deny_executables: bool = False,
 ) -> int:
     queue = client.get_queue()
     to_deny = [
         record
         for record in queue
-        if is_failed_import(record) or (deny_archives and is_archive(record))
+        if is_failed_import(record)
+        or (deny_archives and is_archive(record))
+        or (deny_executables and is_executable(record))
     ]
 
     for record in to_deny:
         title = record.get("title", "<unknown>")
         messages = _status_messages(record)
-        if not messages and is_archive(record):
-            messages = ["Archive file detected (deny archives is enabled)"]
+        if not messages:
+            synthetic = synthetic_deny_reason(record, deny_archives, deny_executables)
+            if synthetic:
+                messages = [synthetic]
         logger.warning("Denying queue item: %s (%s)", title, "; ".join(messages) or "no details")
 
         client.remove_from_queue(record["id"], blocklist=True, skip_redownload=False)

@@ -1,4 +1,4 @@
-from lidarr_watchdog.watchdog import check_once, is_archive, is_failed_import
+from lidarr_watchdog.watchdog import check_once, is_archive, is_executable, is_failed_import
 
 
 class FakeLidarrClient:
@@ -115,3 +115,58 @@ def test_check_once_does_not_double_count_failed_archive():
 
     assert count == 1
     assert client.removed == [(1, True, False)]
+
+
+def test_is_executable_matches_common_extensions():
+    assert is_executable({"title": "Some.Album-2020-GROUP.exe"})
+    assert is_executable({"title": "Setup.msi"})
+    assert is_executable({"title": "install.bat"})
+    assert is_executable({"title": "run.cmd"})
+    assert is_executable({"title": "old.com"})
+    assert is_executable({"title": "screensaver.scr"})
+    assert is_executable({"title": "script.vbs"})
+    assert is_executable({"title": "script.ps1"})
+
+
+def test_is_executable_false_for_non_executable():
+    assert not is_executable({"title": "Some.Album-2020-FLAC-GROUP"})
+    assert not is_executable({})
+
+
+def test_check_once_ignores_executables_when_deny_executables_disabled():
+    queue = [
+        {"id": 1, "title": "Malware.Album.exe", "trackedDownloadState": "downloading"},
+    ]
+    client = FakeLidarrClient(queue)
+
+    count = check_once(client, deny_executables=False)
+
+    assert count == 0
+    assert client.removed == []
+
+
+def test_check_once_denies_executables_when_enabled():
+    queue = [
+        {"id": 1, "title": "Good Album", "trackedDownloadState": "downloading"},
+        {"id": 2, "title": "Malware.Album.exe", "trackedDownloadState": "downloading"},
+    ]
+    client = FakeLidarrClient(queue)
+
+    count = check_once(client, deny_executables=True)
+
+    assert count == 1
+    assert client.removed == [(2, True, False)]
+
+
+def test_check_once_denies_both_archives_and_executables():
+    queue = [
+        {"id": 1, "title": "Archive.Album.rar", "trackedDownloadState": "downloading"},
+        {"id": 2, "title": "Malware.Album.exe", "trackedDownloadState": "downloading"},
+        {"id": 3, "title": "Good Album", "trackedDownloadState": "downloading"},
+    ]
+    client = FakeLidarrClient(queue)
+
+    count = check_once(client, deny_archives=True, deny_executables=True)
+
+    assert count == 2
+    assert {removed[0] for removed in client.removed} == {1, 2}

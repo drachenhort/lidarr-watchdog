@@ -38,6 +38,17 @@
         can't be imported directly.
       </p>
 
+      <label>
+        <input type="checkbox" name="deny_executables" value="on" {% if deny_executables %}checked{% endif %}
+               style="width: auto; display: inline-block; vertical-align: middle; margin-right: 0.4rem;">
+        Automatically deny executable files (.exe/.msi/.bat/...) found in the queue
+      </label>
+      <p class="hint">
+        Blocklists and requeues any queue item whose release title ends in an
+        executable extension — a common way malware gets bundled into scene/P2P
+        releases.
+      </p>
+
       <div class="actions">
         <button type="submit" class="primary">Save settings</button>
         <button type="submit" formaction="/settings/test">Test connection</button>

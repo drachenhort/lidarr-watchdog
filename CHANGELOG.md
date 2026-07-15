@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional automatic denial of executable files (`.exe`/`.msi`/`.bat`/
+  `.cmd`/`.com`/`.scr`/`.vbs`/`.ps1`) found in the queue, toggleable from
+  Settings independently of the archive-denial toggle — blocklists and
+  requeues them even before Lidarr flags them as a failed import.
+
 ## [0.7.0] - 2026-07-15
 
 ### Added

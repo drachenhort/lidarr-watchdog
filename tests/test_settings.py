@@ -57,3 +57,17 @@ def test_deny_archives_roundtrip():
 
     settings.set_deny_archives(conn, False)
     assert settings.get_deny_archives(conn) is False
+
+
+def test_deny_executables_defaults_false():
+    conn = history.connect(":memory:")
+    assert settings.get_deny_executables(conn) is False
+
+
+def test_deny_executables_roundtrip():
+    conn = history.connect(":memory:")
+    settings.set_deny_executables(conn, True)
+    assert settings.get_deny_executables(conn) is True
+
+    settings.set_deny_executables(conn, False)
+    assert settings.get_deny_executables(conn) is False

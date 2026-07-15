@@ -71,6 +71,21 @@ def test_check_and_record_denies_archives_when_setting_enabled():
     assert events[0]["messages"] == "Archive file detected (deny archives is enabled)"
 
 
+def test_check_and_record_denies_executables_when_setting_enabled():
+    conn = history.connect(":memory:")
+    settings.set_deny_executables(conn, True)
+    client = FakeLidarrClient(
+        [{"id": 10, "title": "Malware.Album.exe", "trackedDownloadState": "downloading"}]
+    )
+
+    count = check_and_record(client, conn)
+
+    assert count == 1
+    assert client.removed == [(10, True, False)]
+    events = history.get_recent_events(conn)
+    assert events[0]["messages"] == "Executable file detected (deny executables is enabled)"
+
+
 def test_resolve_client_none_when_unconfigured():
     conn = history.connect(":memory:")
     assert resolve_client(conn) is None

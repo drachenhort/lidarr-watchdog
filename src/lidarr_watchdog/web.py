@@ -64,6 +64,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
                 "poll_interval": settings.get_poll_interval(conn),
                 "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                 "deny_archives": settings.get_deny_archives(conn),
+                "deny_executables": settings.get_deny_executables(conn),
                 "saved": saved,
                 "test_result": None,
             },
@@ -76,6 +77,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         api_key: str = Form(""),
         poll_interval: int = Form(...),
         deny_archives: str | None = Form(None),
+        deny_executables: str | None = Form(None),
     ):
         lidarr_url = lidarr_url.strip()
         error = None
@@ -95,6 +97,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
                     "poll_interval": poll_interval,
                     "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                     "deny_archives": deny_archives is not None,
+                    "deny_executables": deny_executables is not None,
                     "saved": False,
                     "test_result": f"error: {error}",
                 },
@@ -106,6 +109,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
             settings.set(conn, "lidarr_api_key", api_key.strip())
         settings.set(conn, "poll_interval", str(poll_interval))
         settings.set_deny_archives(conn, deny_archives is not None)
+        settings.set_deny_executables(conn, deny_executables is not None)
 
         return RedirectResponse(url="/settings?saved=1", status_code=303)
 
@@ -116,6 +120,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         api_key: str = Form(""),
         poll_interval: int = Form(...),
         deny_archives: str | None = Form(None),
+        deny_executables: str | None = Form(None),
     ) -> HTMLResponse:
         effective_key = api_key.strip() or (settings.get_lidarr_api_key(conn) or "")
         result = _test_connection(lidarr_url.strip(), effective_key)
@@ -129,6 +134,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
                 # this test — Save is a separate action and may leave the field blank
                 "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                 "deny_archives": deny_archives is not None,
+                "deny_executables": deny_executables is not None,
                 "saved": False,
                 "test_result": result,
             },
