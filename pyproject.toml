@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "lidarr-watchdog"
-version = "0.1.0"
+dynamic = ["version"]
 description = ""
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,12 @@ dependencies = []
 
 [project.scripts]
 lidarr-watchdog = "lidarr_watchdog.main:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/lidarr_watchdog/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lidarr_watchdog"]
