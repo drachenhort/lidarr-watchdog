@@ -9,13 +9,17 @@ import sys
 
 import uvicorn
 
-from lidarr_watchdog import history
+from lidarr_watchdog import history, settings
 from lidarr_watchdog.web import create_app
 
 db_path = sys.argv[1] if len(sys.argv) > 1 else "/tmp/lidarr-watchdog-demo.db"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
 
 conn = history.connect(db_path)
+
+settings.set(conn, "lidarr_url", "http://lidarr.example:8686")
+settings.set(conn, "lidarr_api_key", "demo-key")
+settings.set(conn, "poll_interval", "300")
 
 history.record_check(conn, failed_count=0)
 history.record_check(conn, failed_count=2)
@@ -38,5 +42,5 @@ history.record_blocklist_event(
     messages="Track count mismatch",
 )
 
-app = create_app(conn, poll_interval=300)
+app = create_app(conn)
 uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

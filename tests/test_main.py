@@ -1,5 +1,6 @@
-from lidarr_watchdog import history
-from lidarr_watchdog.main import check_and_record
+from lidarr_watchdog import history, settings
+from lidarr_watchdog.lidarr_client import LidarrClient
+from lidarr_watchdog.main import check_and_record, resolve_client, run_check_cycle
 
 
 class FakeLidarrClient:
@@ -53,3 +54,43 @@ def test_check_and_record_captures_errors():
     last_check = history.get_last_check(conn)
     assert last_check["failed_count"] == 0
     assert "connection refused" in last_check["error"]
+
+
+def test_check_and_record_denies_archives_when_setting_enabled():
+    conn = history.connect(":memory:")
+    settings.set_deny_archives(conn, True)
+    client = FakeLidarrClient(
+        [{"id": 9, "title": "Archive.Album.rar", "trackedDownloadState": "downloading"}]
+    )
+
+    count = check_and_record(client, conn)
+
+    assert count == 1
+    assert client.removed == [(9, True, False)]
+    events = history.get_recent_events(conn)
+    assert events[0]["messages"] == "Archive file detected (deny archives is enabled)"
+
+
+def test_resolve_client_none_when_unconfigured():
+    conn = history.connect(":memory:")
+    assert resolve_client(conn) is None
+
+
+def test_resolve_client_builds_client_when_configured():
+    conn = history.connect(":memory:")
+    settings.set(conn, "lidarr_url", "http://lidarr:8686")
+    settings.set(conn, "lidarr_api_key", "secret")
+
+    client = resolve_client(conn)
+
+    assert isinstance(client, LidarrClient)
+
+
+def test_run_check_cycle_records_error_when_unconfigured():
+    conn = history.connect(":memory:")
+
+    count = run_check_cycle(conn)
+
+    assert count == 0
+    last_check = history.get_last_check(conn)
+    assert "isn't configured" in last_check["error"]

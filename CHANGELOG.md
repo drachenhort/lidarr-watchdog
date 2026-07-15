@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Settings page (`/settings`) to configure the Lidarr URL, API key, check
+  interval, and a new "deny archive files" toggle at runtime, stored in
+  SQLite — no restart required. Includes a "Test connection" action that
+  checks the Lidarr connection without saving. `LIDARR_URL`/
+  `LIDARR_API_KEY`/`LIDARR_WATCHDOG_POLL_INTERVAL` env vars now only seed
+  these settings on first run rather than being required.
+- Optional automatic denial of archive files (`.rar`/`.zip`/`.7z`) found in
+  the queue, toggleable from Settings — blocklists and requeues them even
+  before Lidarr flags them as a failed import.
+
 ## [0.4.0] - 2026-07-15
 
 ### Added

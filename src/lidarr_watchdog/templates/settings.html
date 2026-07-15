@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+
+  {% if saved %}
+  <div class="banner ok">Settings saved.</div>
+  {% endif %}
+
+  {% if test_result %}
+    {% if test_result.startswith('ok:') %}
+    <div class="banner ok">{{ test_result[4:] }}</div>
+    {% else %}
+    <div class="banner error">{{ test_result[7:] if test_result.startswith('error:') else test_result }}</div>
+    {% endif %}
+  {% endif %}
+
+  <div class="card">
+    <form class="settings-form" method="post" action="/settings">
+      <label for="lidarr_url">Lidarr URL</label>
+      <input type="text" id="lidarr_url" name="lidarr_url" value="{{ lidarr_url }}"
+             placeholder="http://localhost:8686" required>
+
+      <label for="api_key">Lidarr API key</label>
+      <input type="password" id="api_key" name="api_key"
+             placeholder="{{ '•••••••• (unchanged — leave blank to keep)' if has_api_key else 'Lidarr API key' }}">
+      <p class="hint">Found in Lidarr under Settings → General → Security.</p>
+
+      <label for="poll_interval">Check interval (seconds)</label>
+      <input type="number" id="poll_interval" name="poll_interval" value="{{ poll_interval }}" min="10" required>
+
+      <label>
+        <input type="checkbox" name="deny_archives" value="on" {% if deny_archives %}checked{% endif %}
+               style="width: auto; display: inline-block; vertical-align: middle; margin-right: 0.4rem;">
+        Automatically deny archive files (.rar/.zip/.7z) found in the queue
+      </label>
+      <p class="hint">
+        Blocklists and requeues any queue item whose release title ends in an archive
+        extension, even before Lidarr flags it as a failed import — archives typically
+        can't be imported directly.
+      </p>
+
+      <div class="actions">
+        <button type="submit" class="primary">Save settings</button>
+        <button type="submit" formaction="/settings/test">Test connection</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

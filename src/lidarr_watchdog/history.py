@@ -5,6 +5,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from lidarr_watchdog import settings
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS checks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +34,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout = 5000")
     conn.executescript(SCHEMA)
     conn.commit()
+    settings.ensure_schema(conn)
     return conn
 
 

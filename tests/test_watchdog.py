@@ -1,4 +1,4 @@
-from lidarr_watchdog.watchdog import check_once, is_failed_import
+from lidarr_watchdog.watchdog import check_once, is_archive, is_failed_import
 
 
 class FakeLidarrClient:
@@ -60,3 +60,58 @@ def test_check_once_invokes_on_blocklisted_callback():
     check_once(client, on_blocklisted=seen.append)
 
     assert [record["id"] for record in seen] == [1]
+
+
+def test_is_archive_matches_common_extensions():
+    assert is_archive({"title": "Some.Album-2020-GROUP.rar"})
+    assert is_archive({"title": "Some.Album.part002.rar"})
+    assert is_archive({"title": "Some.Album-GROUP.zip"})
+    assert is_archive({"title": "Some.Album-GROUP.7z"})
+    assert is_archive({"title": "Some.Album-GROUP.r01"})
+
+
+def test_is_archive_false_for_non_archive():
+    assert not is_archive({"title": "Some.Album-2020-FLAC-GROUP"})
+    assert not is_archive({})
+
+
+def test_check_once_ignores_archives_when_deny_archives_disabled():
+    queue = [
+        {"id": 1, "title": "Archive.Album.rar", "trackedDownloadState": "downloading"},
+    ]
+    client = FakeLidarrClient(queue)
+
+    count = check_once(client, deny_archives=False)
+
+    assert count == 0
+    assert client.removed == []
+
+
+def test_check_once_denies_archives_when_enabled():
+    queue = [
+        {"id": 1, "title": "Good Album", "trackedDownloadState": "downloading"},
+        {"id": 2, "title": "Archive.Album.rar", "trackedDownloadState": "downloading"},
+    ]
+    client = FakeLidarrClient(queue)
+
+    count = check_once(client, deny_archives=True)
+
+    assert count == 1
+    assert client.removed == [(2, True, False)]
+
+
+def test_check_once_does_not_double_count_failed_archive():
+    queue = [
+        {
+            "id": 1,
+            "title": "Archive.Album.rar",
+            "trackedDownloadState": "importFailed",
+            "statusMessages": [{"title": "x", "messages": ["Has unmatched tracks"]}],
+        },
+    ]
+    client = FakeLidarrClient(queue)
+
+    count = check_once(client, deny_archives=True)
+
+    assert count == 1
+    assert client.removed == [(1, True, False)]
