@@ -116,6 +116,8 @@ rm -f /tmp/lidarr-watchdog-demo.db* /tmp/lidarr-watchdog.db* /tmp/dashboard.png
 
 See `README.md`'s Docker section and `Dockerfile` — `docker build -t
 lidarr-watchdog .` then `docker run` with `LIDARR_URL`/`LIDARR_API_KEY`
-and a volume at `/data`. Already verified end-to-end: build, `/healthz`,
-dashboard error display on unreachable Lidarr, and SQLite history
-surviving a container restart.
+and a volume/bind-mount at `/config` (settings + SQLite history live at
+`/config/lidarr-watchdog.db`, same convention as Lidarr/Sonarr/Radarr).
+Already verified end-to-end: build, `/healthz`, dashboard error display
+on unreachable Lidarr, settings persisting via a bind-mounted host
+directory, and SQLite history surviving a container restart.

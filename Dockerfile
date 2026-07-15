@@ -18,9 +18,9 @@ RUN useradd --create-home --uid 1000 watchdog
 COPY --from=builder /dist/*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/*.whl && rm -rf /tmp/*.whl
 
-ENV LIDARR_WATCHDOG_DB_PATH=/data/lidarr-watchdog.db
-RUN mkdir -p /data && chown watchdog:watchdog /data
-VOLUME ["/data"]
+ENV LIDARR_WATCHDOG_DB_PATH=/config/lidarr-watchdog.db
+RUN mkdir -p /config && chown watchdog:watchdog /config
+VOLUME ["/config"]
 
 USER watchdog
 EXPOSE 8000

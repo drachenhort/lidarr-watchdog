@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking (Docker):** the container's data directory moved from `/data`
+  to `/config` (matching the Lidarr/Sonarr/Radarr convention), so the
+  default `LIDARR_WATCHDOG_DB_PATH` is now `/config/lidarr-watchdog.db`.
+  If you have an existing volume mounted at `/data`, remount it at
+  `/config` (or move its contents) when upgrading, or your settings and
+  history will appear reset.
+
 ### Fixed
 
 - Saving Settings without an API key no longer silently leaves Lidarr

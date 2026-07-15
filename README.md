@@ -76,12 +76,15 @@ Run it:
 docker run -d \
   --name lidarr-watchdog \
   -p 8000:8000 \
-  -v lidarr-watchdog-data:/data \
+  -v ./lidarr-watchdog-config:/config \
   -e LIDARR_URL=http://lidarr:8686 \
   -e LIDARR_API_KEY=xxxx \
   ghcr.io/drachenhort/lidarr-watchdog:latest
 ```
 
-The image stores its SQLite history at `/data/lidarr-watchdog.db` by
-default — mount a volume there to keep history across container restarts.
-The dashboard is served on port `8000`.
+The image stores its SQLite settings/history at `/config/lidarr-watchdog.db`
+by default (same `/config` convention as Lidarr/Sonarr/Radarr) — bind-mount
+a host directory there, as above, to keep settings and history across
+container restarts and make the data file easy to find/back up. A named
+volume works too (`-v lidarr-watchdog-config:/config`). The dashboard is
+served on port `8000`.
