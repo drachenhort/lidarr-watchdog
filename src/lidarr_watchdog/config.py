@@ -18,6 +18,7 @@ class Config:
     seed_poll_interval: int | None = None
     auth_username: str | None = None
     auth_password: str | None = None
+    skip_auth_for_local: bool = False
 
     @classmethod
     def from_env(cls) -> Config:
@@ -40,6 +41,7 @@ class Config:
             seed_poll_interval=seed_poll_interval,
             auth_username=os.environ.get("LIDARR_WATCHDOG_USERNAME") or None,
             auth_password=os.environ.get("LIDARR_WATCHDOG_PASSWORD") or None,
+            skip_auth_for_local=cls._read_bool("LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL"),
         )
 
     @staticmethod
@@ -49,3 +51,7 @@ class Config:
             return int(raw)
         except ValueError as exc:
             raise ConfigError(f"{env_var} must be an integer, got {raw!r}") from exc
+
+    @staticmethod
+    def _read_bool(env_var: str) -> bool:
+        return os.environ.get(env_var, "").strip().lower() in ("1", "true", "yes")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import ipaddress
 import re
 import secrets
 import sqlite3
@@ -79,32 +80,87 @@ def check_basic_auth(request: Request, username: str, password: str) -> bool:
     )
 
 
+def is_local_address(host: str | None) -> bool:
+    if not host:
+        return False
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
 _UNAUTHORIZED = Response(
     status_code=401,
     content="Unauthorized",
     headers={"WWW-Authenticate": 'Basic realm="lidarr-watchdog"'},
 )
 
+SESSION_COOKIE_NAME = "lw_session"
+
 
 def create_app(
     conn: sqlite3.Connection,
     auth_username: str | None = None,
     auth_password: str | None = None,
+    skip_auth_for_local: bool = False,
 ) -> FastAPI:
     app = FastAPI(title="lidarr-watchdog")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    templates.env.filters["event_time"] = format_event_time
+    templates.env.filters["short_message"] = format_short_message
 
-    if auth_username and auth_password:
+    auth_enabled = bool(auth_username and auth_password)
+    # Random per-process value: presenting it back as a cookie proves the
+    # browser passed the /login form in *this* run. Restarting the process
+    # invalidates all sessions, which is an acceptable tradeoff for not
+    # persisting a signing secret anywhere.
+    session_token = secrets.token_hex(32) if auth_enabled else None
+
+    if auth_enabled:
 
         @app.middleware("http")
         async def require_basic_auth(request: Request, call_next):
-            if request.url.path == "/healthz":
+            if request.url.path in ("/healthz", "/login", "/logout"):
                 return await call_next(request)
-            if not check_basic_auth(request, auth_username, auth_password):
-                return _UNAUTHORIZED
-            return await call_next(request)
-    templates.env.filters["event_time"] = format_event_time
-    templates.env.filters["short_message"] = format_short_message
+            # Only the direct TCP peer address is trusted here, never a
+            # proxy header like X-Forwarded-For (trivially spoofable by any
+            # client unless a specific proxy is trusted and configured to
+            # strip/validate it, which this app does not do). Behind a
+            # reverse proxy, request.client.host is the proxy's own
+            # address, not the original client's — so this bypass should
+            # be left off in that setup, or it will treat all proxied
+            # traffic as local.
+            client_host = request.client.host if request.client else None
+            if skip_auth_for_local and is_local_address(client_host):
+                return await call_next(request)
+            session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+            if session_cookie and secrets.compare_digest(session_cookie, session_token):
+                return await call_next(request)
+            if check_basic_auth(request, auth_username, auth_password):
+                return await call_next(request)
+            return _UNAUTHORIZED
+
+        @app.get("/login", response_class=HTMLResponse)
+        def login_page(request: Request, error: bool = False) -> HTMLResponse:
+            return templates.TemplateResponse(request, "login.html", {"error": error})
+
+        @app.post("/login")
+        def login_submit(username: str = Form(...), password: str = Form("")):
+            if secrets.compare_digest(username, auth_username) and secrets.compare_digest(
+                password, auth_password
+            ):
+                response = RedirectResponse(url="/", status_code=303)
+                response.set_cookie(
+                    SESSION_COOKIE_NAME, session_token, httponly=True, samesite="lax"
+                )
+                return response
+            return RedirectResponse(url="/login?error=1", status_code=303)
+
+        @app.post("/logout")
+        def logout() -> RedirectResponse:
+            response = RedirectResponse(url="/login", status_code=303)
+            response.delete_cookie(SESSION_COOKIE_NAME)
+            return response
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, ran: bool = False) -> HTMLResponse:
@@ -121,6 +177,7 @@ def create_app(
                     settings.get_lidarr_url(conn) and settings.get_lidarr_api_key(conn)
                 ),
                 "just_ran": ran,
+                "auth_enabled": auth_enabled,
             },
         )
 
@@ -151,6 +208,7 @@ def create_app(
                 "deny_executables": settings.get_deny_executables(conn),
                 "saved": saved,
                 "test_result": None,
+                "auth_enabled": auth_enabled,
             },
         )
 
@@ -192,6 +250,7 @@ def create_app(
                     "deny_executables": deny_executables is not None,
                     "saved": False,
                     "test_result": f"error: {error}",
+                    "auth_enabled": auth_enabled,
                 },
                 status_code=400,
             )
@@ -232,6 +291,7 @@ def create_app(
                 "deny_executables": deny_executables is not None,
                 "saved": False,
                 "test_result": result,
+                "auth_enabled": auth_enabled,
             },
         )
 

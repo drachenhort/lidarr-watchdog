@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Credentials are env-var only (not editable via Settings), and `/healthz`
   stays open for container health checks. Off by default, matching prior
   behavior.
+- `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL` to skip auth for clients connecting
+  from a private/local IP address, while still requiring it for everyone
+  else. Only trusts the direct TCP peer address, never proxy headers like
+  `X-Forwarded-For` — see README for the reverse-proxy caveat.
+- `/login` page as an optional alternative to the native Basic Auth
+  browser prompt: a proper HTML form that sets a session cookie on
+  success, with a "Log out" link in the nav (`POST /logout`). Basic Auth
+  keeps working exactly as before regardless of whether `/login` is ever
+  used. Sessions don't survive a process restart.
 
 ### Changed
 

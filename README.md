@@ -35,6 +35,7 @@ Settings, the env var is ignored on subsequent restarts:
 | `LIDARR_WATCHDOG_DB_PATH`          | no       | `lidarr-watchdog.db`    | SQLite file for settings/check history    |
 | `LIDARR_WATCHDOG_USERNAME`         | no       | —                       | HTTP Basic Auth username (see below)      |
 | `LIDARR_WATCHDOG_PASSWORD`         | no       | —                       | HTTP Basic Auth password (see below)      |
+| `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL` | no    | `false`                 | Skip auth for private-network clients     |
 
 If nothing is configured yet (no env vars, nothing saved via Settings),
 the app still starts and serves the dashboard/Settings page — it just
@@ -46,10 +47,34 @@ and API key in Settings.
 By default, the dashboard and Settings page have **no authentication** —
 anyone who can reach the port can view/change the Lidarr connection and
 API key. Set both `LIDARR_WATCHDOG_USERNAME` and `LIDARR_WATCHDOG_PASSWORD`
-to require HTTP Basic Auth on every route except `/healthz` (left open for
+to require credentials on every route except `/healthz` (left open for
 container health checks). Unlike the other settings, credentials are
 env-var only — not editable from the Settings page — so a compromised
 session can't disable auth on itself.
+
+Two ways to authenticate once configured:
+
+- **HTTP Basic Auth** — the browser's native credential prompt, or
+  `curl -u user:pass ...` / any HTTP client. Always available when
+  credentials are configured.
+- **Login form** — visit `/login` for a proper HTML form instead of the
+  native browser prompt; on success it sets a session cookie (cleared via
+  the "Log out" link in the nav, or `POST /logout`). This is optional and
+  additional — Basic Auth keeps working the same way regardless of
+  whether you ever visit `/login`. Sessions are invalidated whenever the
+  process restarts (the signing value is regenerated in memory, not
+  persisted), so you'll need to log in again after an update/restart.
+
+Set `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL=true` to skip auth entirely for
+clients connecting from a private/local IP address (RFC 1918, loopback,
+link-local), while still requiring it for anything else — useful if you
+want free access from your own LAN but auth enforced for anyone reaching
+it from outside. **This only inspects the direct TCP connection's source
+IP, never `X-Forwarded-For` or similar headers** (those are trivially
+spoofable by the client). If you run this behind a reverse proxy, the
+connecting IP the app sees is the proxy's own address, not the original
+client's — leave this option off in that setup, or it will treat all
+proxied traffic (including real remote users) as local.
 
 ## Running
 

@@ -103,6 +103,21 @@
     }
     nav a:hover { background: var(--surface); color: var(--text); }
     nav a.active { background: var(--accent); color: var(--accent-contrast); }
+    nav form { margin: 0; }
+    nav .nav-button {
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      font-family: inherit;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      cursor: pointer;
+      margin: 0;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    nav .nav-button:hover { background: var(--surface); color: var(--text); filter: none; }
 
     .status, .card {
       padding: 1.25rem 1.5rem;
@@ -240,6 +255,11 @@
       <nav>
         <a href="/" class="{{ 'active' if request.url.path == '/' }}">Dashboard</a>
         <a href="/settings" class="{{ 'active' if request.url.path == '/settings' }}">Settings</a>
+        {% if auth_enabled %}
+        <form method="post" action="/logout">
+          <button type="submit" class="nav-button">Log out</button>
+        </form>
+        {% endif %}
       </nav>
     </header>
 

@@ -41,10 +41,17 @@ def main() -> None:
     )
     watchdog_thread.start()
 
-    app = create_app(conn, auth_username=config.auth_username, auth_password=config.auth_password)
+    app = create_app(
+        conn,
+        auth_username=config.auth_username,
+        auth_password=config.auth_password,
+        skip_auth_for_local=config.skip_auth_for_local,
+    )
 
     if config.auth_username and config.auth_password:
-        logger.info("Basic auth enabled")
+        logger.info(
+            "Basic auth enabled%s", " (skipped for local network)" if config.skip_auth_for_local else ""
+        )
     logger.info("Serving dashboard on %s:%s", config.host, config.port)
     try:
         uvicorn.run(app, host=config.host, port=config.port, log_level="info")
