@@ -7,6 +7,8 @@ import re
 import secrets
 import sqlite3
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 import requests
@@ -64,6 +66,13 @@ def format_short_message(full_message: str) -> str:
     return "; ".join(parts) if parts else full_message
 
 
+def get_app_version() -> str:
+    try:
+        return _pkg_version("lidarr-watchdog")
+    except PackageNotFoundError:
+        return "dev"
+
+
 def check_basic_auth(request: Request, username: str, password: str) -> bool:
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Basic "):
@@ -102,12 +111,12 @@ def create_app(
     conn: sqlite3.Connection,
     auth_username: str | None = None,
     auth_password: str | None = None,
-    skip_auth_for_local: bool = False,
 ) -> FastAPI:
     app = FastAPI(title="lidarr-watchdog")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["event_time"] = format_event_time
     templates.env.filters["short_message"] = format_short_message
+    app_version = get_app_version()
 
     auth_enabled = bool(auth_username and auth_password)
     # Random per-process value: presenting it back as a cookie proves the
@@ -131,18 +140,31 @@ def create_app(
             # be left off in that setup, or it will treat all proxied
             # traffic as local.
             client_host = request.client.host if request.client else None
-            if skip_auth_for_local and is_local_address(client_host):
+            if settings.get_skip_auth_for_local(conn) and is_local_address(client_host):
                 return await call_next(request)
             session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
             if session_cookie and secrets.compare_digest(session_cookie, session_token):
                 return await call_next(request)
-            if check_basic_auth(request, auth_username, auth_password):
-                return await call_next(request)
-            return _UNAUTHORIZED
+            if request.headers.get("authorization"):
+                # An explicit Basic Auth attempt (e.g. curl -u, a scripted
+                # client, or a browser retrying after its native prompt) is
+                # still fully honored — this app doesn't remove Basic Auth
+                # support, it just no longer challenges for it by default.
+                if check_basic_auth(request, auth_username, auth_password):
+                    return await call_next(request)
+                return _UNAUTHORIZED
+            # No credentials offered at all: send the browser to the login
+            # form instead of issuing a 401 (which would trigger the native,
+            # unbranded Basic Auth popup). This is the default experience;
+            # Basic Auth above is still there for anyone who uses it
+            # directly.
+            return RedirectResponse(url="/login", status_code=303)
 
         @app.get("/login", response_class=HTMLResponse)
         def login_page(request: Request, error: bool = False) -> HTMLResponse:
-            return templates.TemplateResponse(request, "login.html", {"error": error})
+            return templates.TemplateResponse(
+                request, "login.html", {"error": error, "app_version": app_version}
+            )
 
         @app.post("/login")
         def login_submit(username: str = Form(...), password: str = Form("")):
@@ -178,6 +200,7 @@ def create_app(
                 ),
                 "just_ran": ran,
                 "auth_enabled": auth_enabled,
+                "app_version": app_version,
             },
         )
 
@@ -206,9 +229,11 @@ def create_app(
                 "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                 "deny_archives": settings.get_deny_archives(conn),
                 "deny_executables": settings.get_deny_executables(conn),
+                "skip_auth_for_local": settings.get_skip_auth_for_local(conn),
                 "saved": saved,
                 "test_result": None,
                 "auth_enabled": auth_enabled,
+                "app_version": app_version,
             },
         )
 
@@ -221,6 +246,7 @@ def create_app(
         poll_interval_unit: str = Form(...),
         deny_archives: str | None = Form(None),
         deny_executables: str | None = Form(None),
+        skip_auth_for_local: str | None = Form(None),
     ):
         lidarr_url = lidarr_url.strip()
         unit_seconds = settings.POLL_INTERVAL_UNIT_SECONDS.get(poll_interval_unit)
@@ -248,9 +274,11 @@ def create_app(
                     "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                     "deny_archives": deny_archives is not None,
                     "deny_executables": deny_executables is not None,
+                    "skip_auth_for_local": skip_auth_for_local is not None,
                     "saved": False,
                     "test_result": f"error: {error}",
                     "auth_enabled": auth_enabled,
+                    "app_version": app_version,
                 },
                 status_code=400,
             )
@@ -261,6 +289,7 @@ def create_app(
         settings.set(conn, "poll_interval", str(total_seconds))
         settings.set_deny_archives(conn, deny_archives is not None)
         settings.set_deny_executables(conn, deny_executables is not None)
+        settings.set_skip_auth_for_local(conn, skip_auth_for_local is not None)
 
         return RedirectResponse(url="/settings?saved=1", status_code=303)
 
@@ -273,6 +302,7 @@ def create_app(
         poll_interval_unit: str = Form(...),
         deny_archives: str | None = Form(None),
         deny_executables: str | None = Form(None),
+        skip_auth_for_local: str | None = Form(None),
     ) -> HTMLResponse:
         effective_key = api_key.strip() or (settings.get_lidarr_api_key(conn) or "")
         result = _test_connection(lidarr_url.strip(), effective_key)
@@ -289,9 +319,11 @@ def create_app(
                 "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                 "deny_archives": deny_archives is not None,
                 "deny_executables": deny_executables is not None,
+                "skip_auth_for_local": skip_auth_for_local is not None,
                 "saved": False,
                 "test_result": result,
                 "auth_enabled": auth_enabled,
+                "app_version": app_version,
             },
         )
 

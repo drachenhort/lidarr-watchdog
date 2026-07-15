@@ -32,6 +32,8 @@ def main() -> None:
     settings.seed_if_unset(conn, "lidarr_api_key", config.seed_lidarr_api_key)
     if config.seed_poll_interval is not None:
         settings.seed_if_unset(conn, "poll_interval", str(config.seed_poll_interval))
+    if config.skip_auth_for_local:
+        settings.seed_if_unset(conn, "skip_auth_for_local", "1")
 
     stop_event = threading.Event()
     watchdog_thread = threading.Thread(
@@ -41,16 +43,12 @@ def main() -> None:
     )
     watchdog_thread.start()
 
-    app = create_app(
-        conn,
-        auth_username=config.auth_username,
-        auth_password=config.auth_password,
-        skip_auth_for_local=config.skip_auth_for_local,
-    )
+    app = create_app(conn, auth_username=config.auth_username, auth_password=config.auth_password)
 
     if config.auth_username and config.auth_password:
         logger.info(
-            "Basic auth enabled%s", " (skipped for local network)" if config.skip_auth_for_local else ""
+            "Basic auth enabled%s",
+            " (skipped for local network)" if settings.get_skip_auth_for_local(conn) else "",
         )
     logger.info("Serving dashboard on %s:%s", config.host, config.port)
     try:

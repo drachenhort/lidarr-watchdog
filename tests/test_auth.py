@@ -2,7 +2,7 @@ import base64
 
 from fastapi.testclient import TestClient
 
-from lidarr_watchdog import history
+from lidarr_watchdog import history, settings
 from lidarr_watchdog.web import check_basic_auth, create_app, is_local_address
 
 
@@ -57,11 +57,23 @@ def test_no_auth_configured_allows_unauthenticated_access():
     assert response.status_code == 200
 
 
-def test_auth_configured_rejects_unauthenticated_dashboard():
+def test_auth_configured_redirects_unauthenticated_dashboard_to_login():
     conn = history.connect(":memory:")
     client = TestClient(create_app(conn, auth_username="admin", auth_password="secret"))
 
-    response = client.get("/")
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
+def test_auth_configured_rejects_wrong_basic_auth_header_with_401():
+    # An explicit (if wrong) Basic Auth attempt gets a real 401, not a
+    # redirect — only a fully missing Authorization header redirects.
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn, auth_username="admin", auth_password="secret"))
+
+    response = client.get("/", auth=("admin", "wrong-password"))
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == 'Basic realm="lidarr-watchdog"'
@@ -76,21 +88,12 @@ def test_auth_configured_accepts_correct_credentials():
     assert response.status_code == 200
 
 
-def test_auth_configured_rejects_wrong_credentials():
-    conn = history.connect(":memory:")
-    client = TestClient(create_app(conn, auth_username="admin", auth_password="secret"))
-
-    response = client.get("/", auth=("admin", "wrong-password"))
-
-    assert response.status_code == 401
-
-
 def test_auth_configured_protects_settings_and_run_now():
     conn = history.connect(":memory:")
     client = TestClient(create_app(conn, auth_username="admin", auth_password="secret"))
 
-    assert client.get("/settings").status_code == 401
-    assert client.post("/run-now").status_code == 401
+    assert client.get("/settings", follow_redirects=False).status_code == 303
+    assert client.post("/run-now", follow_redirects=False).status_code == 303
 
     assert client.get("/settings", auth=("admin", "secret")).status_code == 200
 
@@ -124,9 +127,8 @@ def test_is_local_address_false_for_public_or_invalid():
 
 def test_skip_auth_for_local_bypasses_auth_for_private_client_ip():
     conn = history.connect(":memory:")
-    app = create_app(
-        conn, auth_username="admin", auth_password="secret", skip_auth_for_local=True
-    )
+    settings.set_skip_auth_for_local(conn, True)
+    app = create_app(conn, auth_username="admin", auth_password="secret")
     client = TestClient(app, client=("192.168.1.50", 12345))
 
     response = client.get("/")
@@ -136,14 +138,14 @@ def test_skip_auth_for_local_bypasses_auth_for_private_client_ip():
 
 def test_skip_auth_for_local_still_requires_auth_for_public_client_ip():
     conn = history.connect(":memory:")
-    app = create_app(
-        conn, auth_username="admin", auth_password="secret", skip_auth_for_local=True
-    )
+    settings.set_skip_auth_for_local(conn, True)
+    app = create_app(conn, auth_username="admin", auth_password="secret")
     client = TestClient(app, client=("8.8.8.8", 12345))
 
-    response = client.get("/")
+    response = client.get("/", follow_redirects=False)
 
-    assert response.status_code == 401
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
 
 
 def test_skip_auth_for_local_off_by_default_even_for_private_ip():
@@ -151,9 +153,10 @@ def test_skip_auth_for_local_off_by_default_even_for_private_ip():
     app = create_app(conn, auth_username="admin", auth_password="secret")
     client = TestClient(app, client=("192.168.1.50", 12345))
 
-    response = client.get("/")
+    response = client.get("/", follow_redirects=False)
 
-    assert response.status_code == 401
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
 
 
 def test_login_page_not_found_when_auth_not_configured():
@@ -225,7 +228,9 @@ def test_logout_clears_cookie_and_revokes_access():
     assert logout_response.status_code == 303
     assert logout_response.headers["location"] == "/login"
 
-    assert client.get("/").status_code == 401
+    revoked_response = client.get("/", follow_redirects=False)
+    assert revoked_response.status_code == 303
+    assert revoked_response.headers["location"] == "/login"
 
 
 def test_basic_auth_still_works_independently_of_session_cookie():
@@ -237,3 +242,49 @@ def test_basic_auth_still_works_independently_of_session_cookie():
     response = client.get("/", auth=("admin", "secret"))
 
     assert response.status_code == 200
+
+
+def test_settings_page_hides_skip_auth_toggle_when_auth_not_configured():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.get("/settings")
+
+    assert "Skip login for local network" not in response.text
+
+
+def test_settings_page_shows_skip_auth_toggle_when_auth_configured():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn, auth_username="admin", auth_password="secret"))
+
+    response = client.get("/settings", auth=("admin", "secret"))
+
+    assert "Skip login for local network" in response.text
+
+
+def test_save_settings_enables_skip_auth_for_local_via_ui():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn, auth_username="admin", auth_password="secret"))
+
+    client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+            "skip_auth_for_local": "on",
+        },
+        auth=("admin", "secret"),
+        follow_redirects=False,
+    )
+
+    assert settings.get_skip_auth_for_local(conn) is True
+
+    # And it actually takes effect on the very next request, live, without
+    # recreating the app or restarting the process.
+    private_client = TestClient(
+        create_app(conn, auth_username="admin", auth_password="secret"),
+        client=("192.168.1.50", 12345),
+    )
+    assert private_client.get("/").status_code == 200

@@ -89,3 +89,11 @@ def get_deny_executables(conn: sqlite3.Connection) -> bool:
 
 def set_deny_executables(conn: sqlite3.Connection, value: bool) -> None:
     set(conn, "deny_executables", "1" if value else "0")
+
+
+def get_skip_auth_for_local(conn: sqlite3.Connection) -> bool:
+    return get(conn, "skip_auth_for_local") == "1"
+
+
+def set_skip_auth_for_local(conn: sqlite3.Connection, value: bool) -> None:
+    set(conn, "skip_auth_for_local", "1" if value else "0")

@@ -16,10 +16,12 @@ archive/executable-denial toggles at runtime — no restart required.
 
 ## Configuration
 
-The Lidarr URL, API key, check interval, and archive/executable-denial
-toggles are all stored in the app's SQLite database and are editable live
+The Lidarr URL, API key, check interval, archive/executable-denial
+toggles, and (when auth is configured) the skip-auth-for-local-network
+toggle are all stored in the app's SQLite database and are editable live
 from the **Settings** page (`/settings`) in the dashboard — changes take
-effect on the next poll cycle, no restart needed.
+effect on the next poll cycle (or immediately, for the auth toggle), no
+restart needed.
 
 Environment variables only *seed* those values the first time the app
 starts (useful for Docker/first-run setup); once a value has been saved via
@@ -35,7 +37,7 @@ Settings, the env var is ignored on subsequent restarts:
 | `LIDARR_WATCHDOG_DB_PATH`          | no       | `lidarr-watchdog.db`    | SQLite file for settings/check history    |
 | `LIDARR_WATCHDOG_USERNAME`         | no       | —                       | HTTP Basic Auth username (see below)      |
 | `LIDARR_WATCHDOG_PASSWORD`         | no       | —                       | HTTP Basic Auth password (see below)      |
-| `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL` | no    | `false`                 | Skip auth for private-network clients     |
+| `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL` | no    | `false`                 | Seeds the skip-auth-for-local toggle on first run |
 
 If nothing is configured yet (no env vars, nothing saved via Settings),
 the app still starts and serves the dashboard/Settings page — it just
@@ -52,29 +54,31 @@ container health checks). Unlike the other settings, credentials are
 env-var only — not editable from the Settings page — so a compromised
 session can't disable auth on itself.
 
-Two ways to authenticate once configured:
+Two ways to authenticate once configured — **the login form is the
+default**: visiting any page with no credentials at all redirects you to
+`/login`, a proper HTML form, rather than triggering the browser's native
+(unbranded) Basic Auth popup. On success it sets a session cookie, cleared
+via the "Log out" link in the nav or `POST /logout`. Sessions are
+invalidated whenever the process restarts (the signing value is
+regenerated in memory, not persisted), so you'll need to log in again
+after an update/restart.
 
-- **HTTP Basic Auth** — the browser's native credential prompt, or
-  `curl -u user:pass ...` / any HTTP client. Always available when
-  credentials are configured.
-- **Login form** — visit `/login` for a proper HTML form instead of the
-  native browser prompt; on success it sets a session cookie (cleared via
-  the "Log out" link in the nav, or `POST /logout`). This is optional and
-  additional — Basic Auth keeps working the same way regardless of
-  whether you ever visit `/login`. Sessions are invalidated whenever the
-  process restarts (the signing value is regenerated in memory, not
-  persisted), so you'll need to log in again after an update/restart.
+**HTTP Basic Auth still works exactly as before** for anyone who uses it
+directly — `curl -u user:pass ...`, a scripted client, or a browser
+manually sending the header — it's just no longer the first thing offered
+to a fresh, credential-less browser request.
 
-Set `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL=true` to skip auth entirely for
-clients connecting from a private/local IP address (RFC 1918, loopback,
-link-local), while still requiring it for anything else — useful if you
-want free access from your own LAN but auth enforced for anyone reaching
-it from outside. **This only inspects the direct TCP connection's source
-IP, never `X-Forwarded-For` or similar headers** (those are trivially
-spoofable by the client). If you run this behind a reverse proxy, the
-connecting IP the app sees is the proxy's own address, not the original
-client's — leave this option off in that setup, or it will treat all
-proxied traffic (including real remote users) as local.
+Check **"Skip login for local network"** in Settings (or seed it with
+`LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL=true` on first run) to skip auth
+entirely for clients connecting from a private/local IP address (RFC
+1918, loopback, link-local), while still requiring it for anything else —
+useful if you want free access from your own LAN but auth enforced for
+anyone reaching it from outside. **This only inspects the direct TCP
+connection's source IP, never `X-Forwarded-For` or similar headers**
+(those are trivially spoofable by the client). If you run this behind a
+reverse proxy, the connecting IP the app sees is the proxy's own address,
+not the original client's — leave this option off in that setup, or it
+will treat all proxied traffic (including real remote users) as local.
 
 ## Running
 

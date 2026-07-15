@@ -58,6 +58,20 @@
         releases.
       </p>
 
+      {% if auth_enabled %}
+      <label class="checkbox-label">
+        <input type="checkbox" name="skip_auth_for_local" value="on" {% if skip_auth_for_local %}checked{% endif %}>
+        Skip login for local network
+      </label>
+      <p class="hint">
+        Requests from a private/local IP address (e.g. your home LAN) won't need to
+        log in at all; anything else still will. Only checks the direct connection's
+        source address, not proxy headers — leave this off if the app sits behind a
+        reverse proxy, since the proxy's own address would be treated as local instead
+        of the real client's.
+      </p>
+      {% endif %}
+
       <div class="actions">
         <button type="submit" class="primary">Save settings</button>
         <button type="submit" formaction="/settings/test">Test connection</button>

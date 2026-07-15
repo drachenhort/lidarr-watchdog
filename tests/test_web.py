@@ -2,7 +2,7 @@ import responses
 from fastapi.testclient import TestClient
 
 from lidarr_watchdog import history, settings
-from lidarr_watchdog.web import create_app, format_event_time, format_short_message
+from lidarr_watchdog.web import create_app, format_event_time, format_short_message, get_app_version
 
 
 def test_format_event_time_strips_seconds_and_offset():
@@ -38,6 +38,20 @@ def test_format_short_message_truncates_long_messages():
     short = format_short_message(full)
     assert short.endswith("…")
     assert len(short) <= 60
+
+
+def test_get_app_version_returns_non_empty_string():
+    assert isinstance(get_app_version(), str)
+    assert get_app_version()
+
+
+def test_dashboard_shows_app_version():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.get("/")
+
+    assert f"v{get_app_version()}" in response.text
 
 
 def test_healthz():

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- "Skip login for local network" is now a Settings-page toggle (seeded
+  from `LIDARR_WATCHDOG_SKIP_AUTH_FOR_LOCAL` on first run, editable live
+  afterward), shown only when auth is configured.
+- App version shown next to the title in the dashboard header.
+
+### Changed
+
+- **The login form is now the default auth experience.** A request with
+  no credentials at all is redirected to `/login` instead of getting a
+  401 (which used to trigger the browser's native Basic Auth popup).
+  Basic Auth itself is unchanged and still works for anyone who uses it
+  directly (`curl -u`, scripted clients, manually sent headers) — an
+  explicit but wrong Basic Auth attempt still gets a real 401.
+
 ## [0.9.0] - 2026-07-15
 
 ### Added
