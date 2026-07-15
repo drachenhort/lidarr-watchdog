@@ -19,6 +19,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - run: pip install -e . pytest responses
+      - run: pip install -e . pytest responses httpx2
 
       - run: pytest
