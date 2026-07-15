@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Poll Lidarr's download queue on a configurable interval and, for any item
+  with a failed import (`trackedDownloadStatus` of `warning` or `error`),
+  blocklist the release and let Lidarr automatically search for a
+  replacement.
+
 ## [0.1.0] - 2026-07-15
 
 ### Added

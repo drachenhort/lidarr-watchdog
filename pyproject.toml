@@ -9,7 +9,9 @@ description = ""
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "requests>=2.31",
+]
 
 [project.scripts]
 lidarr-watchdog = "lidarr_watchdog.main:main"
@@ -26,4 +28,5 @@ packages = ["src/lidarr_watchdog"]
 [dependency-groups]
 dev = [
     "pytest",
+    "responses",
 ]
