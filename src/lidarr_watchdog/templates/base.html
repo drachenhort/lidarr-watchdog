@@ -4,88 +4,240 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>lidarr-watchdog</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%95%3C/text%3E%3C/svg%3E" />
   <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef1f6;
+      --surface: #ffffff;
+      --surface-2: #f5f7fa;
+      --border: rgba(15, 23, 42, 0.08);
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 10px rgba(15, 23, 42, 0.06);
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-contrast: #ffffff;
+      --ok-bg: #ecfdf5;
+      --ok-border: #6ee7b7;
+      --ok-text: #065f46;
+      --error-bg: #fef2f2;
+      --error-border: #fca5a5;
+      --error-text: #991b1b;
+      --radius: 10px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --surface: #1a2540;
+        --surface-2: #16213c;
+        --border: rgba(255, 255, 255, 0.08);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.35);
+        --text: #e2e8f0;
+        --text-muted: #94a3b8;
+        --accent: #818cf8;
+        --accent-hover: #a5b4fc;
+        --accent-contrast: #0f172a;
+        --ok-bg: rgba(16, 185, 129, 0.12);
+        --ok-border: #34d399;
+        --ok-text: #6ee7b7;
+        --error-bg: rgba(239, 68, 68, 0.12);
+        --error-border: #f87171;
+        --error-text: #fca5a5;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      font-family: system-ui, sans-serif;
-      margin: 2rem auto;
+      font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0 1.25rem 3rem;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .page {
       max-width: 60rem;
-      padding: 0 1rem;
-      color: #1a1a1a;
-      background: #fafafa;
+      margin: 0 auto;
     }
-    h1 { font-size: 1.4rem; display: inline-block; margin-right: 1rem; }
-    h2 { font-size: 1.1rem; margin-top: 2rem; }
-    nav { display: inline-block; }
-    nav a { color: #555; text-decoration: none; margin-right: 1rem; font-size: 0.9rem; }
-    nav a:hover { text-decoration: underline; }
+
+    header.topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 1.5rem 0 1.25rem;
+    }
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    h1 .emoji { font-size: 1.4rem; }
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 2rem 0 0.5rem;
+    }
+
+    nav { display: flex; gap: 0.25rem; }
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    nav a:hover { background: var(--surface); color: var(--text); }
+    nav a.active { background: var(--accent); color: var(--accent-contrast); }
+
     .status, .card {
-      padding: 1rem;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
     }
-    .status.error { border-color: #d33; background: #fff5f5; }
-    .status p, .card p { margin: 0.25rem 0; }
+    .status { border-left: 3px solid var(--ok-border); }
+    .status.error { border-left-color: var(--error-border); }
+    .status p, .card p { margin: 0.3rem 0; line-height: 1.5; }
+    .status .traceback {
+      max-height: 12rem;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      background: var(--surface-2);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text-muted);
+    }
+
     .banner {
-      padding: 0.75rem 1rem;
-      border-radius: 6px;
-      margin-bottom: 1rem;
+      padding: 0.75rem 1.1rem;
+      border-radius: var(--radius);
+      margin-bottom: 1.25rem;
       font-size: 0.9rem;
+      border: 1px solid transparent;
+      box-shadow: var(--shadow);
     }
-    .banner.ok { background: #f0fff4; border: 1px solid #9ae6b4; color: #22543d; }
-    .banner.error { background: #fff5f5; border: 1px solid #f5b5b5; color: #822727; }
+    .banner.ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
+    .banner.error { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
+      background: var(--surface);
       margin-top: 0.5rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
     }
     th, td {
       text-align: left;
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid #eee;
-      font-size: 0.9rem;
+      padding: 0.65rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
     }
-    th { background: #f0f0f0; }
-    .empty { color: #777; }
-    form.settings-form { margin-top: 1rem; }
+    th {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+    .empty { color: var(--text-muted); }
+
+    form.settings-form { margin-top: 0.5rem; }
     form.settings-form label {
       display: block;
       font-size: 0.85rem;
       font-weight: 600;
-      margin: 1rem 0 0.25rem;
+      margin: 1.1rem 0 0.35rem;
     }
     form.settings-form input, form.settings-form select {
       width: 100%;
       max-width: 30rem;
-      padding: 0.4rem 0.5rem;
+      padding: 0.5rem 0.65rem;
       font-size: 0.95rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface-2);
+      color: var(--text);
     }
-    form.settings-form .hint { color: #777; font-size: 0.8rem; margin-top: 0.25rem; }
-    form.settings-form .actions { margin-top: 1.5rem; }
-    button {
-      font-size: 0.9rem;
-      padding: 0.5rem 1rem;
+    form.settings-form input:focus, form.settings-form select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .interval-row { display: flex; gap: 0.5rem; max-width: 30rem; }
+    .interval-row input, .interval-row select { max-width: none; }
+    form.settings-form input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      max-width: none;
+      padding: 0;
       border-radius: 4px;
-      border: 1px solid #ccc;
-      background: #fff;
+      margin: 0 0.6rem 0 0;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    label.checkbox-label {
+      display: flex !important;
+      align-items: center;
+      cursor: pointer;
+    }
+    form.settings-form .hint { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.3rem; }
+    form.settings-form .actions {
+      margin-top: 1.75rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    button {
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
       cursor: pointer;
       margin-right: 0.5rem;
+      transition: filter 0.15s ease;
     }
-    button.primary { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
+    button:hover { filter: brightness(0.97); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+    button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   </style>
 </head>
 <body>
-  <h1>lidarr-watchdog</h1>
-  <nav>
-    <a href="/">Dashboard</a>
-    <a href="/settings">Settings</a>
-  </nav>
+  <div class="page">
+    <header class="topbar">
+      <h1><span class="emoji">🐕</span> lidarr-watchdog</h1>
+      <nav>
+        <a href="/" class="{{ 'active' if request.url.path == '/' }}">Dashboard</a>
+        <a href="/settings" class="{{ 'active' if request.url.path == '/settings' }}">Settings</a>
+      </nav>
+    </header>
 
-  {% block content %}{% endblock %}
+    {% block content %}{% endblock %}
+  </div>
 </body>
 </html>

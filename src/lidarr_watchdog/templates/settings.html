@@ -25,10 +25,10 @@
       <p class="hint">Found in Lidarr under Settings → General → Security.</p>
 
       <label for="poll_interval_value">Check interval</label>
-      <div style="display: flex; gap: 0.5rem; max-width: 30rem;">
+      <div class="interval-row">
         <input type="number" id="poll_interval_value" name="poll_interval_value"
-               value="{{ poll_interval_value }}" min="1" required style="max-width: none;">
-        <select id="poll_interval_unit" name="poll_interval_unit" style="max-width: none;">
+               value="{{ poll_interval_value }}" min="1" required>
+        <select id="poll_interval_unit" name="poll_interval_unit">
           {% for unit in poll_interval_units %}
           <option value="{{ unit }}" {% if unit == poll_interval_unit %}selected{% endif %}>
             {{ unit | capitalize }}
@@ -38,9 +38,8 @@
       </div>
       <p class="hint">Minimum 10 seconds.</p>
 
-      <label>
-        <input type="checkbox" name="deny_archives" value="on" {% if deny_archives %}checked{% endif %}
-               style="width: auto; display: inline-block; vertical-align: middle; margin-right: 0.4rem;">
+      <label class="checkbox-label">
+        <input type="checkbox" name="deny_archives" value="on" {% if deny_archives %}checked{% endif %}>
         Automatically deny archive files (.rar/.zip/.7z) found in the queue
       </label>
       <p class="hint">
@@ -49,9 +48,8 @@
         can't be imported directly.
       </p>
 
-      <label>
-        <input type="checkbox" name="deny_executables" value="on" {% if deny_executables %}checked{% endif %}
-               style="width: auto; display: inline-block; vertical-align: middle; margin-right: 0.4rem;">
+      <label class="checkbox-label">
+        <input type="checkbox" name="deny_executables" value="on" {% if deny_executables %}checked{% endif %}>
         Automatically deny executable files (.exe/.msi/.bat/...) found in the queue
       </label>
       <p class="hint">

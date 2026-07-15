@@ -10,7 +10,10 @@
       <p>Lidarr isn't configured yet. Go to <a href="/settings">Settings</a> to set the URL and API key.</p>
     {% elif last_check %}
       <p>Last check: {{ last_check['checked_at'] }} — {{ last_check['failed_count'] }} failed import(s) handled</p>
-      {% if last_check['error'] %}<p>Last error: {{ last_check['error'] }}</p>{% endif %}
+      {% if last_check['error'] %}
+      <p>Last error:</p>
+      <div class="traceback">{{ last_check['error'] }}</div>
+      {% endif %}
     {% else %}
       <p>No checks have run yet.</p>
     {% endif %}
