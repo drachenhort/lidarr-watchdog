@@ -35,3 +35,20 @@ configured interval, while the dashboard is served at
 
 `LIDARR_WATCHDOG_DB_PATH` should point at a persistent location (e.g. a
 mounted volume when running in a container) so history survives restarts.
+
+## Docker
+
+```sh
+docker build -t lidarr-watchdog .
+docker run -d \
+  --name lidarr-watchdog \
+  -p 8000:8000 \
+  -v lidarr-watchdog-data:/data \
+  -e LIDARR_URL=http://lidarr:8686 \
+  -e LIDARR_API_KEY=xxxx \
+  lidarr-watchdog
+```
+
+The image stores its SQLite history at `/data/lidarr-watchdog.db` by
+default — mount a volume there to keep history across container restarts.
+The dashboard is served on port `8000`.
