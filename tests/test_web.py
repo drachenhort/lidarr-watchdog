@@ -56,6 +56,10 @@ def test_dashboard_shows_check_and_events():
     assert format_event_time(event["occurred_at"]) in response.text
     assert event["occurred_at"] not in response.text  # raw ISO timestamp not shown
 
+    last_check = history.get_last_check(conn)
+    assert format_event_time(last_check["checked_at"]) in response.text
+    assert last_check["checked_at"] not in response.text  # raw ISO timestamp not shown
+
 
 def test_dashboard_hides_run_now_when_unconfigured():
     conn = history.connect(":memory:")
