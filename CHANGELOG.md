@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PUID`/`PGID` env vars (default `1000`/`1000`) for the Docker image. The
+  container now starts as root, adjusts its internal user to the given
+  IDs, fixes `/config` ownership, and drops privileges before running the
+  app — so a bind-mounted host directory owned by a different or
+  Docker-auto-created (root) user no longer causes "unable to open
+  database file" and doesn't require manually `chown`-ing the host path.
+
 ## [0.6.0] - 2026-07-15
 
 ### Changed

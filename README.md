@@ -77,6 +77,8 @@ docker run -d \
   --name lidarr-watchdog \
   -p 8000:8000 \
   -v ./lidarr-watchdog-config:/config \
+  -e PUID=1000 \
+  -e PGID=1000 \
   -e LIDARR_URL=http://lidarr:8686 \
   -e LIDARR_API_KEY=xxxx \
   ghcr.io/drachenhort/lidarr-watchdog:latest
@@ -88,3 +90,15 @@ a host directory there, as above, to keep settings and history across
 container restarts and make the data file easy to find/back up. A named
 volume works too (`-v lidarr-watchdog-config:/config`). The dashboard is
 served on port `8000`.
+
+### PUID / PGID
+
+The container starts as root, then drops to a non-root user before running
+the app. `PUID`/`PGID` (both default to `1000`) control which user/group
+that is — set them to match the owner of your bind-mounted `/config`
+directory (e.g. `id -u`/`id -g` of your own user) and the container fixes
+ownership automatically on startup, so you don't need to `chown` the host
+directory yourself. If you bind-mount a directory that Docker had to
+auto-create (owned by `root`) or one owned by a different user than the
+container's default (uid/gid `1000`), set `PUID`/`PGID` accordingly rather
+than manually `chown`-ing the host path.
