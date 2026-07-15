@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Blocklist event messages are now shortened on the dashboard (e.g. "Album
+  match is not close enough: 27.6 % vs 80 % [...]" → "Album match is not
+  close enough"), with the full original message available as a native
+  hover tooltip on truncated ones. Already-short messages like "Has
+  missing tracks" are shown unchanged.
+
 ## [0.8.0] - 2026-07-15
 
 ### Added

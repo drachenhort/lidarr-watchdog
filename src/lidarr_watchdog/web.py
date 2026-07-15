@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -40,10 +41,30 @@ def format_event_time(iso_timestamp: str) -> str:
         return iso_timestamp
 
 
+_TRAILING_BRACKET_RE = re.compile(r"\s*\[[^\]]*\]\s*$")
+_TRAILING_FILLER_RE = re.compile(r"\s+(for|in|at|of|to)$", re.IGNORECASE)
+_MAX_SHORT_MESSAGE_LENGTH = 60
+
+
+def _shorten_single_message(message: str) -> str:
+    short = message.split(":", 1)[0].strip()
+    short = _TRAILING_BRACKET_RE.sub("", short).strip()
+    short = _TRAILING_FILLER_RE.sub("", short).strip()
+    if len(short) > _MAX_SHORT_MESSAGE_LENGTH:
+        short = short[: _MAX_SHORT_MESSAGE_LENGTH - 1].rstrip() + "…"
+    return short or message
+
+
+def format_short_message(full_message: str) -> str:
+    parts = [_shorten_single_message(part) for part in full_message.split("; ") if part]
+    return "; ".join(parts) if parts else full_message
+
+
 def create_app(conn: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="lidarr-watchdog")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["event_time"] = format_event_time
+    templates.env.filters["short_message"] = format_short_message
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, ran: bool = False) -> HTMLResponse:

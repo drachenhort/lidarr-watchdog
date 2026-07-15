@@ -2,7 +2,7 @@ import responses
 from fastapi.testclient import TestClient
 
 from lidarr_watchdog import history, settings
-from lidarr_watchdog.web import create_app, format_event_time
+from lidarr_watchdog.web import create_app, format_event_time, format_short_message
 
 
 def test_format_event_time_strips_seconds_and_offset():
@@ -11,6 +11,33 @@ def test_format_event_time_strips_seconds_and_offset():
 
 def test_format_event_time_falls_back_on_unparseable_input():
     assert format_event_time("not-a-timestamp") == "not-a-timestamp"
+
+
+def test_format_short_message_strips_percentage_detail():
+    full = "Album match is not close enough: 27.6 % vs 80 % [artist, album, tracks]"
+    assert format_short_message(full) == "Album match is not close enough"
+
+
+def test_format_short_message_strips_bracket_and_trailing_preposition():
+    full = "Couldn't find similar album for [/download/completed/Some.Album]"
+    assert format_short_message(full) == "Couldn't find similar album"
+
+
+def test_format_short_message_leaves_already_short_message_alone():
+    assert format_short_message("Has missing tracks") == "Has missing tracks"
+    assert format_short_message("Has unmatched tracks") == "Has unmatched tracks"
+
+
+def test_format_short_message_handles_multiple_joined_reasons():
+    full = "Has missing tracks; Worst track match: 22.0 % vs 60 % [track title, recording id]"
+    assert format_short_message(full) == "Has missing tracks; Worst track match"
+
+
+def test_format_short_message_truncates_long_messages():
+    full = "Failed to import track, Destination already exists on the filesystem somewhere deep"
+    short = format_short_message(full)
+    assert short.endswith("…")
+    assert len(short) <= 60
 
 
 def test_healthz():
@@ -59,6 +86,20 @@ def test_dashboard_shows_check_and_events():
     last_check = history.get_last_check(conn)
     assert format_event_time(last_check["checked_at"]) in response.text
     assert last_check["checked_at"] not in response.text  # raw ISO timestamp not shown
+
+
+def test_dashboard_shows_full_message_as_hover_tooltip():
+    conn = history.connect(":memory:")
+    settings.set(conn, "lidarr_url", "http://localhost:8686")
+    settings.set(conn, "lidarr_api_key", "secret")
+    full_message = "Album match is not close enough: 27.6 % vs 80 % [artist, album, tracks]"
+    history.record_blocklist_event(conn, queue_id=7, title="Bad Album", messages=full_message)
+
+    client = TestClient(create_app(conn))
+    response = client.get("/")
+
+    assert format_short_message(full_message) in response.text
+    assert f'title="{full_message}"' in response.text
 
 
 def test_dashboard_hides_run_now_when_unconfigured():

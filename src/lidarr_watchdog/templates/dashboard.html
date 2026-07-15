@@ -36,7 +36,14 @@
       <tr>
         <td>{{ event['occurred_at'] | event_time }}</td>
         <td>{{ event['title'] }}</td>
-        <td>{{ event['messages'] }}</td>
+        <td>
+          {% set short = event['messages'] | short_message %}
+          {% if short != event['messages'] %}
+          <span class="msg-hoverable" title="{{ event['messages'] }}">{{ short }}</span>
+          {% else %}
+          {{ short }}
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
