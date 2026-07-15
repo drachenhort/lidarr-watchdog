@@ -144,6 +144,35 @@ def test_save_settings_rejects_too_short_poll_interval():
     assert "at least 10 seconds" in response.text
 
 
+def test_save_settings_rejects_missing_api_key_on_first_save():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.post(
+        "/settings",
+        data={"lidarr_url": "http://lidarr:8686", "api_key": "", "poll_interval": "300"},
+    )
+
+    assert response.status_code == 400
+    assert "API key is required" in response.text
+    assert settings.get_lidarr_url(conn) is None
+
+
+def test_save_settings_blank_api_key_allowed_when_already_saved():
+    conn = history.connect(":memory:")
+    settings.set(conn, "lidarr_api_key", "existing-key")
+    client = TestClient(create_app(conn))
+
+    response = client.post(
+        "/settings",
+        data={"lidarr_url": "http://lidarr:8686", "api_key": "", "poll_interval": "300"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert settings.get_lidarr_api_key(conn) == "existing-key"
+
+
 @responses.activate
 def test_test_connection_success():
     responses.add(

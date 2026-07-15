@@ -81,6 +81,8 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         error = None
         if not lidarr_url.startswith(("http://", "https://")):
             error = "Lidarr URL must start with http:// or https://"
+        elif not api_key.strip() and not settings.get_lidarr_api_key(conn):
+            error = "API key is required (it wasn't saved by Test connection — enter it here too)"
         elif poll_interval < 10:
             error = "Poll interval must be at least 10 seconds"
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Saving Settings without an API key no longer silently leaves Lidarr
+  unconfigured. This could happen after using "Test connection" (which
+  never persists) and then clicking "Save settings" without retyping the
+  key into the now-blank field — Save now requires an API key on first
+  setup and rejects the save with a clear error instead.
+
 ## [0.5.0] - 2026-07-15
 
 ### Added
