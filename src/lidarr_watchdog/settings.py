@@ -5,6 +5,13 @@ import threading
 
 DEFAULT_POLL_INTERVAL = 300
 
+POLL_INTERVAL_UNIT_SECONDS = {
+    "seconds": 1,
+    "minutes": 60,
+    "hours": 3600,
+    "days": 86400,
+}
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -51,6 +58,21 @@ def get_lidarr_api_key(conn: sqlite3.Connection) -> str | None:
 def get_poll_interval(conn: sqlite3.Connection) -> int:
     raw = get(conn, "poll_interval")
     return int(raw) if raw else DEFAULT_POLL_INTERVAL
+
+
+def split_poll_interval(total_seconds: int) -> tuple[int, str]:
+    """Split a total-seconds value into a (value, unit) pair for display,
+    picking the largest unit that divides it evenly."""
+    for unit in ("days", "hours", "minutes"):
+        divisor = POLL_INTERVAL_UNIT_SECONDS[unit]
+        if total_seconds % divisor == 0:
+            return total_seconds // divisor, unit
+    return total_seconds, "seconds"
+
+
+def format_poll_interval(total_seconds: int) -> str:
+    value, unit = split_poll_interval(total_seconds)
+    return f"{value} {unit if value != 1 else unit.rstrip('s')}"
 
 
 def get_deny_archives(conn: sqlite3.Connection) -> bool:

@@ -24,7 +24,7 @@ def test_dashboard_with_no_data():
     assert response.status_code == 200
     assert "isn't configured yet" in response.text
     assert "No blocklist events yet." in response.text
-    assert "300s" in response.text
+    assert "5 minutes" in response.text
 
 
 def test_dashboard_shows_check_and_events():
@@ -42,6 +42,47 @@ def test_dashboard_shows_check_and_events():
     assert "import failed" in response.text
     assert "1 failed import(s) handled" in response.text
     assert "isn't configured" not in response.text
+    assert "Run now" in response.text
+
+
+def test_dashboard_hides_run_now_when_unconfigured():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.get("/")
+
+    assert "Run now" not in response.text
+
+
+def test_dashboard_shows_check_complete_banner_after_run():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.get("/", params={"ran": "1"})
+
+    assert "Check complete." in response.text
+
+
+@responses.activate
+def test_run_now_triggers_check_and_redirects():
+    responses.add(
+        responses.GET,
+        "http://lidarr:8686/api/v1/queue",
+        json={"page": 1, "pageSize": 200, "totalRecords": 0, "records": []},
+        status=200,
+    )
+    conn = history.connect(":memory:")
+    settings.set(conn, "lidarr_url", "http://lidarr:8686")
+    settings.set(conn, "lidarr_api_key", "secret")
+    client = TestClient(create_app(conn))
+
+    response = client.post("/run-now", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/?ran=1"
+    last_check = history.get_last_check(conn)
+    assert last_check is not None
+    assert last_check["error"] is None
 
 
 def test_settings_page_defaults():
@@ -53,6 +94,8 @@ def test_settings_page_defaults():
     assert response.status_code == 200
     assert 'placeholder="http://localhost:8686"' in response.text
     assert "Lidarr API key" in response.text  # empty-state placeholder, not "unchanged"
+    assert 'value="5"' in response.text  # default 300s displayed as 5 minutes
+    assert "selected" in response.text
 
 
 def test_settings_page_masks_existing_api_key():
@@ -73,7 +116,12 @@ def test_save_settings_persists_and_redirects():
 
     response = client.post(
         "/settings",
-        data={"lidarr_url": "http://lidarr:8686/", "api_key": "my-key", "poll_interval": "120"},
+        data={
+            "lidarr_url": "http://lidarr:8686/",
+            "api_key": "my-key",
+            "poll_interval_value": "2",
+            "poll_interval_unit": "minutes",
+        },
         follow_redirects=False,
     )
 
@@ -85,6 +133,35 @@ def test_save_settings_persists_and_redirects():
     assert settings.get_deny_archives(conn) is False
 
 
+def test_save_settings_supports_days_and_hours():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "2",
+            "poll_interval_unit": "hours",
+        },
+        follow_redirects=False,
+    )
+    assert settings.get_poll_interval(conn) == 7200
+
+    client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "1",
+            "poll_interval_unit": "days",
+        },
+        follow_redirects=False,
+    )
+    assert settings.get_poll_interval(conn) == 86400
+
+
 def test_save_settings_blank_api_key_keeps_existing():
     conn = history.connect(":memory:")
     settings.set(conn, "lidarr_api_key", "original-key")
@@ -92,7 +169,12 @@ def test_save_settings_blank_api_key_keeps_existing():
 
     client.post(
         "/settings",
-        data={"lidarr_url": "http://lidarr:8686", "api_key": "", "poll_interval": "300"},
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+        },
         follow_redirects=False,
     )
 
@@ -108,7 +190,8 @@ def test_save_settings_enables_deny_archives_checkbox():
         data={
             "lidarr_url": "http://lidarr:8686",
             "api_key": "key",
-            "poll_interval": "300",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
             "deny_archives": "on",
         },
         follow_redirects=False,
@@ -126,7 +209,8 @@ def test_save_settings_enables_deny_executables_checkbox():
         data={
             "lidarr_url": "http://lidarr:8686",
             "api_key": "key",
-            "poll_interval": "300",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
             "deny_executables": "on",
         },
         follow_redirects=False,
@@ -142,7 +226,12 @@ def test_save_settings_rejects_bad_url():
 
     response = client.post(
         "/settings",
-        data={"lidarr_url": "not-a-url", "api_key": "key", "poll_interval": "300"},
+        data={
+            "lidarr_url": "not-a-url",
+            "api_key": "key",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+        },
     )
 
     assert response.status_code == 400
@@ -156,11 +245,34 @@ def test_save_settings_rejects_too_short_poll_interval():
 
     response = client.post(
         "/settings",
-        data={"lidarr_url": "http://lidarr:8686", "api_key": "key", "poll_interval": "5"},
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "5",
+            "poll_interval_unit": "seconds",
+        },
     )
 
     assert response.status_code == 400
     assert "at least 10 seconds" in response.text
+
+
+def test_save_settings_rejects_invalid_unit():
+    conn = history.connect(":memory:")
+    client = TestClient(create_app(conn))
+
+    response = client.post(
+        "/settings",
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "5",
+            "poll_interval_unit": "fortnights",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Invalid check interval unit" in response.text
 
 
 def test_save_settings_rejects_missing_api_key_on_first_save():
@@ -169,7 +281,12 @@ def test_save_settings_rejects_missing_api_key_on_first_save():
 
     response = client.post(
         "/settings",
-        data={"lidarr_url": "http://lidarr:8686", "api_key": "", "poll_interval": "300"},
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+        },
     )
 
     assert response.status_code == 400
@@ -184,7 +301,12 @@ def test_save_settings_blank_api_key_allowed_when_already_saved():
 
     response = client.post(
         "/settings",
-        data={"lidarr_url": "http://lidarr:8686", "api_key": "", "poll_interval": "300"},
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+        },
         follow_redirects=False,
     )
 
@@ -205,7 +327,12 @@ def test_test_connection_success():
 
     response = client.post(
         "/settings/test",
-        data={"lidarr_url": "http://lidarr:8686", "api_key": "key", "poll_interval": "300"},
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "key",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+        },
     )
 
     assert response.status_code == 200
@@ -228,7 +355,12 @@ def test_test_connection_failure():
 
     response = client.post(
         "/settings/test",
-        data={"lidarr_url": "http://lidarr:8686", "api_key": "bad-key", "poll_interval": "300"},
+        data={
+            "lidarr_url": "http://lidarr:8686",
+            "api_key": "bad-key",
+            "poll_interval_value": "300",
+            "poll_interval_unit": "seconds",
+        },
     )
 
     assert response.status_code == 200

@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.cmd`/`.com`/`.scr`/`.vbs`/`.ps1`) found in the queue, toggleable from
   Settings independently of the archive-denial toggle — blocklists and
   requeues them even before Lidarr flags them as a failed import.
+- Settings' check interval can now be entered in seconds, minutes, hours,
+  or days instead of only raw seconds; the dashboard displays it in the
+  most readable unit (e.g. "5 minutes" instead of "300s").
+- "Run now" button on the dashboard to trigger an on-demand queue check
+  immediately instead of waiting for the next scheduled poll.
 
 ## [0.7.0] - 2026-07-15
 

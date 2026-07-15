@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from lidarr_watchdog import history, settings
+from lidarr_watchdog.checker import run_check_cycle
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -36,19 +37,27 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
     @app.get("/", response_class=HTMLResponse)
-    def dashboard(request: Request) -> HTMLResponse:
+    def dashboard(request: Request, ran: bool = False) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             "dashboard.html",
             {
                 "last_check": history.get_last_check(conn),
                 "events": history.get_recent_events(conn),
-                "poll_interval": settings.get_poll_interval(conn),
+                "poll_interval_display": settings.format_poll_interval(
+                    settings.get_poll_interval(conn)
+                ),
                 "configured": bool(
                     settings.get_lidarr_url(conn) and settings.get_lidarr_api_key(conn)
                 ),
+                "just_ran": ran,
             },
         )
+
+    @app.post("/run-now")
+    def run_now() -> RedirectResponse:
+        run_check_cycle(conn)
+        return RedirectResponse(url="/?ran=1", status_code=303)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -56,12 +65,17 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request, saved: bool = False) -> HTMLResponse:
+        poll_interval_value, poll_interval_unit = settings.split_poll_interval(
+            settings.get_poll_interval(conn)
+        )
         return templates.TemplateResponse(
             request,
             "settings.html",
             {
                 "lidarr_url": settings.get_lidarr_url(conn) or "",
-                "poll_interval": settings.get_poll_interval(conn),
+                "poll_interval_value": poll_interval_value,
+                "poll_interval_unit": poll_interval_unit,
+                "poll_interval_units": settings.POLL_INTERVAL_UNIT_SECONDS,
                 "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                 "deny_archives": settings.get_deny_archives(conn),
                 "deny_executables": settings.get_deny_executables(conn),
@@ -75,18 +89,24 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         request: Request,
         lidarr_url: str = Form(...),
         api_key: str = Form(""),
-        poll_interval: int = Form(...),
+        poll_interval_value: int = Form(...),
+        poll_interval_unit: str = Form(...),
         deny_archives: str | None = Form(None),
         deny_executables: str | None = Form(None),
     ):
         lidarr_url = lidarr_url.strip()
+        unit_seconds = settings.POLL_INTERVAL_UNIT_SECONDS.get(poll_interval_unit)
+        total_seconds = poll_interval_value * unit_seconds if unit_seconds else None
+
         error = None
         if not lidarr_url.startswith(("http://", "https://")):
             error = "Lidarr URL must start with http:// or https://"
         elif not api_key.strip() and not settings.get_lidarr_api_key(conn):
             error = "API key is required (it wasn't saved by Test connection — enter it here too)"
-        elif poll_interval < 10:
-            error = "Poll interval must be at least 10 seconds"
+        elif unit_seconds is None:
+            error = "Invalid check interval unit"
+        elif total_seconds < 10:
+            error = "Check interval must be at least 10 seconds"
 
         if error:
             return templates.TemplateResponse(
@@ -94,7 +114,9 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
                 "settings.html",
                 {
                     "lidarr_url": lidarr_url,
-                    "poll_interval": poll_interval,
+                    "poll_interval_value": poll_interval_value,
+                    "poll_interval_unit": poll_interval_unit,
+                    "poll_interval_units": settings.POLL_INTERVAL_UNIT_SECONDS,
                     "has_api_key": bool(settings.get_lidarr_api_key(conn)),
                     "deny_archives": deny_archives is not None,
                     "deny_executables": deny_executables is not None,
@@ -107,7 +129,7 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         settings.set(conn, "lidarr_url", lidarr_url.rstrip("/"))
         if api_key.strip():
             settings.set(conn, "lidarr_api_key", api_key.strip())
-        settings.set(conn, "poll_interval", str(poll_interval))
+        settings.set(conn, "poll_interval", str(total_seconds))
         settings.set_deny_archives(conn, deny_archives is not None)
         settings.set_deny_executables(conn, deny_executables is not None)
 
@@ -118,7 +140,8 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         request: Request,
         lidarr_url: str = Form(...),
         api_key: str = Form(""),
-        poll_interval: int = Form(...),
+        poll_interval_value: int = Form(...),
+        poll_interval_unit: str = Form(...),
         deny_archives: str | None = Form(None),
         deny_executables: str | None = Form(None),
     ) -> HTMLResponse:
@@ -129,7 +152,9 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
             "settings.html",
             {
                 "lidarr_url": lidarr_url.strip(),
-                "poll_interval": poll_interval,
+                "poll_interval_value": poll_interval_value,
+                "poll_interval_unit": poll_interval_unit,
+                "poll_interval_units": settings.POLL_INTERVAL_UNIT_SECONDS,
                 # reflects what's actually persisted, not the key just used for
                 # this test — Save is a separate action and may leave the field blank
                 "has_api_key": bool(settings.get_lidarr_api_key(conn)),

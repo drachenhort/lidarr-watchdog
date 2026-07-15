@@ -1,6 +1,6 @@
 from lidarr_watchdog import history, settings
+from lidarr_watchdog.checker import check_and_record, resolve_client, run_check_cycle
 from lidarr_watchdog.lidarr_client import LidarrClient
-from lidarr_watchdog.main import check_and_record, resolve_client, run_check_cycle
 
 
 class FakeLidarrClient:

@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 
+  {% if just_ran %}
+  <div class="banner ok">Check complete.</div>
+  {% endif %}
+
   <div class="status {{ 'error' if last_check and last_check['error'] else '' }}">
     {% if not configured %}
       <p>Lidarr isn't configured yet. Go to <a href="/settings">Settings</a> to set the URL and API key.</p>
@@ -10,7 +14,12 @@
     {% else %}
       <p>No checks have run yet.</p>
     {% endif %}
-    <p>Poll interval: {{ poll_interval }}s</p>
+    <p>Poll interval: {{ poll_interval_display }}</p>
+    {% if configured %}
+    <form method="post" action="/run-now" style="margin-top: 0.75rem;">
+      <button type="submit" class="primary">Run now</button>
+    </form>
+    {% endif %}
   </div>
 
   <h2>Recent blocklist events</h2>

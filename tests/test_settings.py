@@ -71,3 +71,23 @@ def test_deny_executables_roundtrip():
 
     settings.set_deny_executables(conn, False)
     assert settings.get_deny_executables(conn) is False
+
+
+def test_split_poll_interval_picks_largest_clean_unit():
+    assert settings.split_poll_interval(30) == (30, "seconds")
+    assert settings.split_poll_interval(300) == (5, "minutes")
+    assert settings.split_poll_interval(7200) == (2, "hours")
+    assert settings.split_poll_interval(86400) == (1, "days")
+    assert settings.split_poll_interval(90) == (90, "seconds")  # not clean minutes
+
+
+def test_split_poll_interval_prefers_larger_units_when_multiple_fit():
+    # 3600s divides evenly by both minutes (60) and hours (1) - hours should win
+    assert settings.split_poll_interval(3600) == (1, "hours")
+
+
+def test_format_poll_interval_pluralizes():
+    assert settings.format_poll_interval(300) == "5 minutes"
+    assert settings.format_poll_interval(60) == "1 minute"
+    assert settings.format_poll_interval(30) == "30 seconds"
+    assert settings.format_poll_interval(1) == "1 second"

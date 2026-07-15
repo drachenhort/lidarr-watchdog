@@ -24,8 +24,19 @@
              placeholder="{{ '•••••••• (unchanged — leave blank to keep)' if has_api_key else 'Lidarr API key' }}">
       <p class="hint">Found in Lidarr under Settings → General → Security.</p>
 
-      <label for="poll_interval">Check interval (seconds)</label>
-      <input type="number" id="poll_interval" name="poll_interval" value="{{ poll_interval }}" min="10" required>
+      <label for="poll_interval_value">Check interval</label>
+      <div style="display: flex; gap: 0.5rem; max-width: 30rem;">
+        <input type="number" id="poll_interval_value" name="poll_interval_value"
+               value="{{ poll_interval_value }}" min="1" required style="max-width: none;">
+        <select id="poll_interval_unit" name="poll_interval_unit" style="max-width: none;">
+          {% for unit in poll_interval_units %}
+          <option value="{{ unit }}" {% if unit == poll_interval_unit %}selected{% endif %}>
+            {{ unit | capitalize }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <p class="hint">Minimum 10 seconds.</p>
 
       <label>
         <input type="checkbox" name="deny_archives" value="on" {% if deny_archives %}checked{% endif %}
