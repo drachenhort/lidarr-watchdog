@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lidarr-watchdog"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+lidarr-watchdog = "lidarr_watchdog.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lidarr_watchdog"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
