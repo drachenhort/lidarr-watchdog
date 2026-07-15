@@ -16,6 +16,8 @@ class Config:
     seed_lidarr_url: str | None = None
     seed_lidarr_api_key: str | None = None
     seed_poll_interval: int | None = None
+    auth_username: str | None = None
+    auth_password: str | None = None
 
     @classmethod
     def from_env(cls) -> Config:
@@ -36,6 +38,8 @@ class Config:
             seed_lidarr_url=seed_lidarr_url.rstrip("/") if seed_lidarr_url else None,
             seed_lidarr_api_key=os.environ.get("LIDARR_API_KEY"),
             seed_poll_interval=seed_poll_interval,
+            auth_username=os.environ.get("LIDARR_WATCHDOG_USERNAME") or None,
+            auth_password=os.environ.get("LIDARR_WATCHDOG_PASSWORD") or None,
         )
 
     @staticmethod

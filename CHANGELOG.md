@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional HTTP Basic Auth for the dashboard and Settings page, enabled by
+  setting both `LIDARR_WATCHDOG_USERNAME` and `LIDARR_WATCHDOG_PASSWORD`.
+  Credentials are env-var only (not editable via Settings), and `/healthz`
+  stays open for container health checks. Off by default, matching prior
+  behavior.
+
 ### Changed
 
 - Blocklist event messages are now shortened on the dashboard (e.g. "Album

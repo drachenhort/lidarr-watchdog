@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import re
+import secrets
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 import requests
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from lidarr_watchdog import history, settings
@@ -60,9 +63,46 @@ def format_short_message(full_message: str) -> str:
     return "; ".join(parts) if parts else full_message
 
 
-def create_app(conn: sqlite3.Connection) -> FastAPI:
+def check_basic_auth(request: Request, username: str, password: str) -> bool:
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Basic "):
+        return False
+    try:
+        decoded = base64.b64decode(auth_header.removeprefix("Basic "), validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError):
+        return False
+    req_username, sep, req_password = decoded.partition(":")
+    if not sep:
+        return False
+    return secrets.compare_digest(req_username, username) and secrets.compare_digest(
+        req_password, password
+    )
+
+
+_UNAUTHORIZED = Response(
+    status_code=401,
+    content="Unauthorized",
+    headers={"WWW-Authenticate": 'Basic realm="lidarr-watchdog"'},
+)
+
+
+def create_app(
+    conn: sqlite3.Connection,
+    auth_username: str | None = None,
+    auth_password: str | None = None,
+) -> FastAPI:
     app = FastAPI(title="lidarr-watchdog")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+    if auth_username and auth_password:
+
+        @app.middleware("http")
+        async def require_basic_auth(request: Request, call_next):
+            if request.url.path == "/healthz":
+                return await call_next(request)
+            if not check_basic_auth(request, auth_username, auth_password):
+                return _UNAUTHORIZED
+            return await call_next(request)
     templates.env.filters["event_time"] = format_event_time
     templates.env.filters["short_message"] = format_short_message
 

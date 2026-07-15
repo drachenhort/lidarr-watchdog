@@ -41,8 +41,10 @@ def main() -> None:
     )
     watchdog_thread.start()
 
-    app = create_app(conn)
+    app = create_app(conn, auth_username=config.auth_username, auth_password=config.auth_password)
 
+    if config.auth_username and config.auth_password:
+        logger.info("Basic auth enabled")
     logger.info("Serving dashboard on %s:%s", config.host, config.port)
     try:
         uvicorn.run(app, host=config.host, port=config.port, log_level="info")

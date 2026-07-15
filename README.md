@@ -33,11 +33,23 @@ Settings, the env var is ignored on subsequent restarts:
 | `LIDARR_WATCHDOG_HOST`             | no       | `0.0.0.0`               | Web dashboard bind host                   |
 | `LIDARR_WATCHDOG_PORT`             | no       | `8000`                  | Web dashboard port                        |
 | `LIDARR_WATCHDOG_DB_PATH`          | no       | `lidarr-watchdog.db`    | SQLite file for settings/check history    |
+| `LIDARR_WATCHDOG_USERNAME`         | no       | —                       | HTTP Basic Auth username (see below)      |
+| `LIDARR_WATCHDOG_PASSWORD`         | no       | —                       | HTTP Basic Auth password (see below)      |
 
 If nothing is configured yet (no env vars, nothing saved via Settings),
 the app still starts and serves the dashboard/Settings page — it just
 records a "not configured" result each poll cycle until you set the URL
 and API key in Settings.
+
+### Authentication
+
+By default, the dashboard and Settings page have **no authentication** —
+anyone who can reach the port can view/change the Lidarr connection and
+API key. Set both `LIDARR_WATCHDOG_USERNAME` and `LIDARR_WATCHDOG_PASSWORD`
+to require HTTP Basic Auth on every route except `/healthz` (left open for
+container health checks). Unlike the other settings, credentials are
+env-var only — not editable from the Settings page — so a compromised
+session can't disable auth on itself.
 
 ## Running
 
