@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Actions workflow to run the test suite on push and pull request.
+
 ## [0.2.0] - 2026-07-15
 
 ### Added
