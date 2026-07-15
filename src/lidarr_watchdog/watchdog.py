@@ -7,11 +7,8 @@ from lidarr_watchdog.lidarr_client import LidarrClient
 
 logger = logging.getLogger(__name__)
 
-FAILED_TRACKED_DOWNLOAD_STATUSES = {"warning", "error"}
-
-
 def is_failed_import(record: dict[str, Any]) -> bool:
-    return record.get("trackedDownloadStatus") in FAILED_TRACKED_DOWNLOAD_STATUSES
+    return record.get("trackedDownloadState") == "importFailed"
 
 
 def check_once(client: LidarrClient) -> int:

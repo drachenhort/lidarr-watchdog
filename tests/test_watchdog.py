@@ -13,23 +13,32 @@ class FakeLidarrClient:
         self.removed.append((queue_id, blocklist, skip_redownload))
 
 
-def test_is_failed_import_true_for_warning_and_error():
-    assert is_failed_import({"trackedDownloadStatus": "warning"})
-    assert is_failed_import({"trackedDownloadStatus": "error"})
+def test_is_failed_import_true_for_import_failed_state():
+    assert is_failed_import({"trackedDownloadState": "importFailed"})
 
 
-def test_is_failed_import_false_for_ok():
-    assert not is_failed_import({"trackedDownloadStatus": "ok"})
+def test_is_failed_import_false_for_other_states():
+    assert not is_failed_import({"trackedDownloadState": "downloadFailed"})
+    assert not is_failed_import({"trackedDownloadState": "importPending"})
+    assert not is_failed_import({"trackedDownloadState": "importBlocked"})
+    assert not is_failed_import({"trackedDownloadState": "imported"})
     assert not is_failed_import({})
 
 
 def test_check_once_blocklists_and_requeues_failed_imports():
     queue = [
-        {"id": 1, "title": "Good Album", "trackedDownloadStatus": "ok"},
+        {"id": 1, "title": "Good Album", "trackedDownloadState": "downloading"},
         {
             "id": 2,
+            "title": "Stalled Download",
+            "trackedDownloadStatus": "error",
+            "trackedDownloadState": "downloadFailed",
+        },
+        {
+            "id": 3,
             "title": "Bad Album",
             "trackedDownloadStatus": "warning",
+            "trackedDownloadState": "importFailed",
             "statusMessages": [{"title": "Bad Album", "messages": ["Not a preferred word upgrade"]}],
         },
     ]
@@ -38,4 +47,4 @@ def test_check_once_blocklists_and_requeues_failed_imports():
     count = check_once(client)
 
     assert count == 1
-    assert client.removed == [(2, True, False)]
+    assert client.removed == [(3, True, False)]

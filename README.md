@@ -1,8 +1,10 @@
 # lidarr-watchdog
 
 Polls a Lidarr instance's download queue, and for any item whose import
-failed (tracked download status `warning` or `error`), blocklists the
-release and lets Lidarr automatically search for a replacement.
+actually failed (queue `trackedDownloadState` of `importFailed`), blocklists
+the release and lets Lidarr automatically search for a replacement. Other
+queue warnings (stalled/failed downloads, pending manual import, etc.) are
+left alone.
 
 ## Configuration
 
