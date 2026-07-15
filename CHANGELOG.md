@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Blocklist event messages no longer repeat the same reason multiple
+  times. Lidarr emits one `statusMessages` entry per track, so an
+  album-level issue like "Album match is not close enough" was showing
+  once per track (e.g. 12 times for a 12-track album) instead of once.
+
 ## [0.9.2] - 2026-07-15
 
 ### Added

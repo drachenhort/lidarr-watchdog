@@ -26,12 +26,18 @@ def is_executable(record: dict[str, Any]) -> bool:
     return bool(EXECUTABLE_EXTENSION_RE.search(title))
 
 
-def _status_messages(record: dict[str, Any]) -> list[str]:
-    return [
+def status_messages(record: dict[str, Any]) -> list[str]:
+    """Flatten and deduplicate a queue record's statusMessages, preserving
+    order. Lidarr emits one statusMessages entry per track, so an album-level
+    issue (e.g. "Album match is not close enough") is repeated once per
+    track without this — a 12-track album would otherwise show the same
+    message 12 times."""
+    all_messages = (
         message
         for status_message in record.get("statusMessages", [])
         for message in status_message.get("messages", [])
-    ]
+    )
+    return list(dict.fromkeys(all_messages))
 
 
 def synthetic_deny_reason(record: dict[str, Any], deny_archives: bool, deny_executables: bool) -> str | None:
@@ -68,7 +74,7 @@ def check_once(
 
     for record, reason in to_deny:
         title = record.get("title", "<unknown>")
-        messages = _status_messages(record)
+        messages = status_messages(record)
         if not messages:
             synthetic = synthetic_deny_reason(record, deny_archives, deny_executables)
             if synthetic:

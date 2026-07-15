@@ -45,6 +45,31 @@ def test_check_and_record_records_check_and_events():
     assert events[0]["messages"] == "mismatched tracks"
 
 
+def test_check_and_record_deduplicates_repeated_per_track_messages():
+    conn = history.connect(":memory:")
+    client = FakeLidarrClient(
+        [
+            {
+                "id": 3,
+                "title": "Repeated Reasons Album",
+                "trackedDownloadState": "importFailed",
+                "statusMessages": [
+                    {
+                        "title": f"Track {i}",
+                        "messages": ["Album match is not close enough", "Has unmatched tracks"],
+                    }
+                    for i in range(12)
+                ],
+            }
+        ]
+    )
+
+    check_and_record(client, conn)
+
+    events = history.get_recent_events(conn)
+    assert events[0]["messages"] == "Album match is not close enough; Has unmatched tracks"
+
+
 def test_check_and_record_captures_errors():
     conn = history.connect(":memory:")
 

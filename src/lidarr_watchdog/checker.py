@@ -6,7 +6,7 @@ import traceback
 
 from lidarr_watchdog import history, settings
 from lidarr_watchdog.lidarr_client import LidarrClient
-from lidarr_watchdog.watchdog import check_once, synthetic_deny_reason
+from lidarr_watchdog.watchdog import check_once, status_messages, synthetic_deny_reason
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,7 @@ def resolve_client(conn: sqlite3.Connection) -> LidarrClient | None:
 
 
 def _event_messages(record: dict, deny_archives: bool, deny_executables: bool) -> str:
-    messages = "; ".join(
-        message
-        for status_message in record.get("statusMessages", [])
-        for message in status_message.get("messages", [])
-    )
+    messages = "; ".join(status_messages(record))
     if not messages:
         return synthetic_deny_reason(record, deny_archives, deny_executables) or ""
     return messages

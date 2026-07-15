@@ -1,4 +1,10 @@
-from lidarr_watchdog.watchdog import check_once, is_archive, is_executable, is_failed_import
+from lidarr_watchdog.watchdog import (
+    check_once,
+    is_archive,
+    is_executable,
+    is_failed_import,
+    status_messages,
+)
 
 
 class FakeLidarrClient:
@@ -212,3 +218,63 @@ def test_check_once_denies_both_archives_and_executables():
 
     assert count == 2
     assert {removed[0] for removed in client.removed} == {1, 2}
+
+
+def test_status_messages_deduplicates_repeated_per_track_messages():
+    # Lidarr emits one statusMessages entry per track, so an album-level
+    # issue is repeated once per track (e.g. 12 times for a 12-track album)
+    record = {
+        "statusMessages": [
+            {
+                "title": f"Track {i}",
+                "messages": [
+                    "Album match is not close enough: 27.6 % vs 80 %",
+                    "Has unmatched tracks",
+                ],
+            }
+            for i in range(12)
+        ]
+    }
+
+    assert status_messages(record) == [
+        "Album match is not close enough: 27.6 % vs 80 %",
+        "Has unmatched tracks",
+    ]
+
+
+def test_status_messages_preserves_order_of_first_occurrence():
+    record = {
+        "statusMessages": [
+            {"title": "Track 1", "messages": ["A", "B"]},
+            {"title": "Track 2", "messages": ["B", "C"]},
+            {"title": "Track 3", "messages": ["A"]},
+        ]
+    }
+
+    assert status_messages(record) == ["A", "B", "C"]
+
+
+def test_status_messages_empty_for_no_status_messages():
+    assert status_messages({}) == []
+    assert status_messages({"statusMessages": []}) == []
+
+
+def test_check_once_deduplicates_messages_in_denial_log():
+    queue = [
+        {
+            "id": 1,
+            "title": "Repeated Reasons Album",
+            "trackedDownloadState": "importFailed",
+            "statusMessages": [
+                {"title": "Track 1", "messages": ["Album match is not close enough"]},
+                {"title": "Track 2", "messages": ["Album match is not close enough"]},
+                {"title": "Track 3", "messages": ["Album match is not close enough"]},
+            ],
+        }
+    ]
+    client = FakeLidarrClient(queue)
+    seen = []
+
+    check_once(client, on_blocklisted=lambda record, reason: seen.append(status_messages(record)))
+
+    assert seen == [["Album match is not close enough"]]
