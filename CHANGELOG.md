@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New **Blocklist** page (`/blocklist`) showing Lidarr's actual blocklist
+  (paginated, sorted newest-first) with a "Remove" action per entry to
+  un-blocklist a release and let Lidarr retry it. Distinct from the
+  dashboard's "Recent blocklist events" list, which is this app's own log
+  of what it did, not a live view of Lidarr's blocklist state.
+
 ## [0.9.1] - 2026-07-15
 
 ### Added

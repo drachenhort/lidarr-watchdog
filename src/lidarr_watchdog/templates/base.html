@@ -266,6 +266,7 @@
       </h1>
       <nav>
         <a href="/" class="{{ 'active' if request.url.path == '/' }}">Dashboard</a>
+        <a href="/blocklist" class="{{ 'active' if request.url.path == '/blocklist' }}">Blocklist</a>
         <a href="/settings" class="{{ 'active' if request.url.path == '/settings' }}">Settings</a>
         {% if auth_enabled %}
         <form method="post" action="/logout">

@@ -3,6 +3,8 @@ from __future__ import annotations
 import base64
 import binascii
 import ipaddress
+import logging
+import math
 import re
 import secrets
 import sqlite3
@@ -17,7 +19,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from lidarr_watchdog import history, settings
-from lidarr_watchdog.checker import run_check_cycle
+from lidarr_watchdog.checker import resolve_client, run_check_cycle
+
+logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -105,6 +109,7 @@ _UNAUTHORIZED = Response(
 )
 
 SESSION_COOKIE_NAME = "lw_session"
+BLOCKLIST_PAGE_SIZE = 50
 
 
 def create_app(
@@ -326,5 +331,47 @@ def create_app(
                 "app_version": app_version,
             },
         )
+
+    @app.get("/blocklist", response_class=HTMLResponse)
+    def blocklist_page(request: Request, page: int = 1) -> HTMLResponse:
+        page = max(page, 1)
+        client = resolve_client(conn)
+        records: list[dict] = []
+        total_pages = 1
+        error = None
+        if client is not None:
+            try:
+                payload = client.get_blocklist(page=page, page_size=BLOCKLIST_PAGE_SIZE)
+                records = payload.get("records", [])
+                total_records = payload.get("totalRecords", 0)
+                total_pages = max(1, math.ceil(total_records / BLOCKLIST_PAGE_SIZE))
+            except requests.RequestException as exc:
+                error = str(exc)
+
+        return templates.TemplateResponse(
+            request,
+            "blocklist.html",
+            {
+                "configured": client is not None,
+                "records": records,
+                "page": page,
+                "total_pages": total_pages,
+                "error": error,
+                "auth_enabled": auth_enabled,
+                "app_version": app_version,
+            },
+        )
+
+    @app.post("/blocklist/remove")
+    def remove_blocklist_entry(
+        blocklist_id: int = Form(...), page: int = Form(1)
+    ) -> RedirectResponse:
+        client = resolve_client(conn)
+        if client is not None:
+            try:
+                client.remove_blocklist_entry(blocklist_id)
+            except requests.RequestException:
+                logger.exception("Failed to remove blocklist entry %s", blocklist_id)
+        return RedirectResponse(url=f"/blocklist?page={page}", status_code=303)
 
     return app

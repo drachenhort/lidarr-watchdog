@@ -43,3 +43,23 @@ class LidarrClient:
             timeout=30,
         )
         response.raise_for_status()
+
+    def get_blocklist(self, page: int = 1, page_size: int = 50) -> dict[str, Any]:
+        response = self._session.get(
+            f"{self._base_url}/api/v1/blocklist",
+            params={
+                "page": page,
+                "pageSize": page_size,
+                "sortKey": "date",
+                "sortDirection": "descending",
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def remove_blocklist_entry(self, blocklist_id: int) -> None:
+        response = self._session.delete(
+            f"{self._base_url}/api/v1/blocklist/{blocklist_id}", timeout=30
+        )
+        response.raise_for_status()

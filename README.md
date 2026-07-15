@@ -8,11 +8,14 @@ left alone. Optionally, it can also proactively deny any queue item that's
 an archive (`.rar`/`.zip`/`.7z`) or executable (`.exe`/`.msi`/`.bat`/...)
 file — see Settings below.
 
-A web dashboard shows the last check and recent blocklist events, lets you
-trigger an on-demand check with a "Run now" button instead of waiting for
-the next poll, and a Settings page lets you configure the Lidarr
-connection, check interval (in seconds, minutes, hours, or days), and the
-archive/executable-denial toggles at runtime — no restart required.
+A web dashboard shows the last check and recent blocklist events (this
+app's own action log), lets you trigger an on-demand check with a "Run
+now" button instead of waiting for the next poll, and a Settings page
+lets you configure the Lidarr connection, check interval (in seconds,
+minutes, hours, or days), and the archive/executable-denial toggles at
+runtime — no restart required. A separate **Blocklist** page shows
+Lidarr's actual blocklist (not just this app's log of it) and lets you
+remove entries to let Lidarr retry them.
 
 ## Configuration
 

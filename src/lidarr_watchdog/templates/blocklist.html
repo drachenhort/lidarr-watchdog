@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+  {% if not configured %}
+  <div class="status">
+    <p>Lidarr isn't configured yet. Go to <a href="/settings">Settings</a> to set the URL and API key.</p>
+  </div>
+  {% elif error %}
+  <div class="banner error">Couldn't reach Lidarr: {{ error }}</div>
+  {% else %}
+
+  {% if records %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Artist</th>
+        <th>Release</th>
+        <th>Reason</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in records %}
+      <tr>
+        <td>{{ record.date | event_time }}</td>
+        <td>{{ record.artist.artistName if record.artist else record.artistId }}</td>
+        <td>{{ record.sourceTitle }}</td>
+        <td>{{ record.message }}</td>
+        <td>
+          <form method="post" action="/blocklist/remove" style="margin: 0;">
+            <input type="hidden" name="blocklist_id" value="{{ record.id }}">
+            <input type="hidden" name="page" value="{{ page }}">
+            <button type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_pages > 1 %}
+  <div style="margin-top: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+    <form method="get" action="/blocklist" style="margin: 0;">
+      <input type="hidden" name="page" value="{{ page - 1 }}">
+      <button type="submit" {% if page <= 1 %}disabled{% endif %}>Previous</button>
+    </form>
+    <span class="hint">Page {{ page }} of {{ total_pages }}</span>
+    <form method="get" action="/blocklist" style="margin: 0;">
+      <input type="hidden" name="page" value="{{ page + 1 }}">
+      <button type="submit" {% if page >= total_pages %}disabled{% endif %}>Next</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="empty">Blocklist is empty.</p>
+  {% endif %}
+
+  {% endif %}
+{% endblock %}
