@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-07-16
+
+### Fixed
+
+- The watchdog's polling loop no longer stops permanently if a single check
+  cycle raises an unexpected error — it now logs the error and keeps
+  polling on the next cycle.
+- Repeat-count escalation no longer depends on internal call ordering
+  between two functions, and a failure recording one denial to history no
+  longer drops the rest of that cycle's denials.
+- Logging out now invalidates the session token instead of only clearing
+  the browser's cookie, so a previously leaked session cookie can't be
+  reused after logout.
+
+### Changed
+
+- The dashboard's auth check no longer blocks the request-handling event
+  loop with a synchronous database read on every request.
+- History and settings reads are now guarded against races with concurrent
+  writes.
+- The checks/blocklist/ignore history tables are now pruned to a bounded
+  number of rows instead of growing forever.
+- The Lidarr API client is now reused across polling cycles and blocklist
+  page requests instead of being rebuilt every time.
+
 ## [0.9.3] - 2026-07-15
 
 ### Fixed
@@ -178,7 +203,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial project scaffold.
 
-[Unreleased]: https://github.com/drachenhort/lidarr-watchdog/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/drachenhort/lidarr-watchdog/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/drachenhort/lidarr-watchdog/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/drachenhort/lidarr-watchdog/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/drachenhort/lidarr-watchdog/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/drachenhort/lidarr-watchdog/compare/v0.9.0...v0.9.1
