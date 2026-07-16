@@ -24,8 +24,13 @@ class LidarrClient:
             )
             response.raise_for_status()
             payload = response.json()
-            records.extend(payload.get("records", []))
-            if page * payload.get("pageSize", 200) >= payload.get("totalRecords", 0):
+            page_records = payload.get("records", [])
+            records.extend(page_records)
+            # Guard against a malformed/zero pageSize looping forever: stop
+            # once a page comes back empty, regardless of totalRecords math.
+            if not page_records or page * payload.get("pageSize", 200) >= payload.get(
+                "totalRecords", 0
+            ):
                 break
             page += 1
         return records

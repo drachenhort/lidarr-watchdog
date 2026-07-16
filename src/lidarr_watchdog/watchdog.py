@@ -48,6 +48,20 @@ def synthetic_deny_reason(record: dict[str, Any], deny_archives: bool, deny_exec
     return None
 
 
+def resolved_messages(
+    record: dict[str, Any], deny_archives: bool, deny_executables: bool
+) -> list[str]:
+    """The messages to log/persist for a denied record: Lidarr's own
+    statusMessages, or a synthetic archive/executable reason when Lidarr
+    didn't provide any. Single source of truth for both the denial log line
+    and the history event, so they can't silently drift apart."""
+    messages = status_messages(record)
+    if messages:
+        return messages
+    synthetic = synthetic_deny_reason(record, deny_archives, deny_executables)
+    return [synthetic] if synthetic else []
+
+
 def _classify(record: dict[str, Any], deny_archives: bool, deny_executables: bool) -> str | None:
     if is_failed_import(record):
         return "failed_import"
@@ -72,20 +86,25 @@ def check_once(
         if reason is not None:
             to_deny.append((record, reason))
 
+    denied_count = 0
     for record, reason in to_deny:
         title = record.get("title", "<unknown>")
-        messages = status_messages(record)
-        if not messages:
-            synthetic = synthetic_deny_reason(record, deny_archives, deny_executables)
-            if synthetic:
-                messages = [synthetic]
+        messages = resolved_messages(record, deny_archives, deny_executables)
         logger.warning("Denying queue item: %s (%s)", title, "; ".join(messages) or "no details")
 
         skip_redownload = resolve_skip_redownload(record, reason) if resolve_skip_redownload else False
         client.remove_from_queue(record["id"], blocklist=True, skip_redownload=skip_redownload)
         logger.info("Blocklisted and requeued for search: %s", title)
+        denied_count += 1
 
         if on_blocklisted:
-            on_blocklisted(record, reason)
+            try:
+                on_blocklisted(record, reason)
+            except Exception:
+                # The item is already removed/blocklisted in Lidarr at this
+                # point; a failure recording it to history shouldn't lose
+                # that count or abort denial of the rest of this cycle's
+                # queue.
+                logger.exception("Error handling blocklisted item: %s", title)
 
-    return len(to_deny)
+    return denied_count

@@ -29,7 +29,8 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 def get(conn: sqlite3.Connection, key: str) -> str | None:
-    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    with _write_lock:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else None
 
 
@@ -46,6 +47,14 @@ def set(conn: sqlite3.Connection, key: str, value: str) -> None:
 def seed_if_unset(conn: sqlite3.Connection, key: str, value: str | None) -> None:
     if value is not None and get(conn, key) is None:
         set(conn, key, value)
+
+
+def get_bool(conn: sqlite3.Connection, key: str) -> bool:
+    return get(conn, key) == "1"
+
+
+def set_bool(conn: sqlite3.Connection, key: str, value: bool) -> None:
+    set(conn, key, "1" if value else "0")
 
 
 def get_lidarr_url(conn: sqlite3.Connection) -> str | None:
@@ -77,27 +86,27 @@ def format_poll_interval(total_seconds: int) -> str:
 
 
 def get_deny_archives(conn: sqlite3.Connection) -> bool:
-    return get(conn, "deny_archives") == "1"
+    return get_bool(conn, "deny_archives")
 
 
 def set_deny_archives(conn: sqlite3.Connection, value: bool) -> None:
-    set(conn, "deny_archives", "1" if value else "0")
+    set_bool(conn, "deny_archives", value)
 
 
 def get_deny_executables(conn: sqlite3.Connection) -> bool:
-    return get(conn, "deny_executables") == "1"
+    return get_bool(conn, "deny_executables")
 
 
 def set_deny_executables(conn: sqlite3.Connection, value: bool) -> None:
-    set(conn, "deny_executables", "1" if value else "0")
+    set_bool(conn, "deny_executables", value)
 
 
 def get_skip_auth_for_local(conn: sqlite3.Connection) -> bool:
-    return get(conn, "skip_auth_for_local") == "1"
+    return get_bool(conn, "skip_auth_for_local")
 
 
 def set_skip_auth_for_local(conn: sqlite3.Connection, value: bool) -> None:
-    set(conn, "skip_auth_for_local", "1" if value else "0")
+    set_bool(conn, "skip_auth_for_local", value)
 
 
 def get_repeat_threshold(conn: sqlite3.Connection) -> int:

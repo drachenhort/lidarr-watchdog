@@ -16,9 +16,12 @@ logger = logging.getLogger(__name__)
 
 def _run_watchdog_loop(conn: sqlite3.Connection, stop_event: threading.Event) -> None:
     while not stop_event.is_set():
-        count = run_check_cycle(conn)
-        if count:
-            logger.info("Handled %d failed import(s)", count)
+        try:
+            count = run_check_cycle(conn)
+            if count:
+                logger.info("Handled %d failed import(s)", count)
+        except Exception:
+            logger.exception("Unhandled error in watchdog loop; will retry next cycle")
         stop_event.wait(settings.get_poll_interval(conn))
 
 

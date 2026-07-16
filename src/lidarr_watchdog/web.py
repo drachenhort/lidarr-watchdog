@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import ipaddress
@@ -102,11 +103,13 @@ def is_local_address(host: str | None) -> bool:
         return False
 
 
-_UNAUTHORIZED = Response(
-    status_code=401,
-    content="Unauthorized",
-    headers={"WWW-Authenticate": 'Basic realm="lidarr-watchdog"'},
-)
+def _unauthorized_response() -> Response:
+    return Response(
+        status_code=401,
+        content="Unauthorized",
+        headers={"WWW-Authenticate": 'Basic realm="lidarr-watchdog"'},
+    )
+
 
 SESSION_COOKIE_NAME = "lw_session"
 BLOCKLIST_PAGE_SIZE = 50
@@ -136,6 +139,9 @@ def create_app(
         async def require_basic_auth(request: Request, call_next):
             if request.url.path in ("/healthz", "/login", "/logout"):
                 return await call_next(request)
+            session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+            if session_cookie and secrets.compare_digest(session_cookie, session_token):
+                return await call_next(request)
             # Only the direct TCP peer address is trusted here, never a
             # proxy header like X-Forwarded-For (trivially spoofable by any
             # client unless a specific proxy is trusted and configured to
@@ -145,10 +151,8 @@ def create_app(
             # be left off in that setup, or it will treat all proxied
             # traffic as local.
             client_host = request.client.host if request.client else None
-            if settings.get_skip_auth_for_local(conn) and is_local_address(client_host):
-                return await call_next(request)
-            session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
-            if session_cookie and secrets.compare_digest(session_cookie, session_token):
+            skip_local = await asyncio.to_thread(settings.get_skip_auth_for_local, conn)
+            if skip_local and is_local_address(client_host):
                 return await call_next(request)
             if request.headers.get("authorization"):
                 # An explicit Basic Auth attempt (e.g. curl -u, a scripted
@@ -157,7 +161,7 @@ def create_app(
                 # support, it just no longer challenges for it by default.
                 if check_basic_auth(request, auth_username, auth_password):
                     return await call_next(request)
-                return _UNAUTHORIZED
+                return _unauthorized_response()
             # No credentials offered at all: send the browser to the login
             # form instead of issuing a 401 (which would trigger the native,
             # unbranded Basic Auth popup). This is the default experience;
@@ -185,6 +189,11 @@ def create_app(
 
         @app.post("/logout")
         def logout() -> RedirectResponse:
+            nonlocal session_token
+            # Rotate, not just clear the cookie client-side — otherwise a
+            # previously leaked cookie would stay valid until the process
+            # restarts, even after the user "logged out".
+            session_token = secrets.token_hex(32)
             response = RedirectResponse(url="/login", status_code=303)
             response.delete_cookie(SESSION_COOKIE_NAME)
             return response

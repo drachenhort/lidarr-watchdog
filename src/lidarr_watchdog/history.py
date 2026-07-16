@@ -52,6 +52,17 @@ CREATE TABLE IF NOT EXISTS ignore_events (
 
 _write_lock = threading.Lock()
 
+# Row caps so long-running deployments don't grow these tables unbounded.
+_MAX_CHECK_ROWS = 2000
+_MAX_EVENT_ROWS = 1000
+
+
+def _prune(conn: sqlite3.Connection, table: str, keep: int) -> None:
+    conn.execute(
+        f"DELETE FROM {table} WHERE id NOT IN (SELECT id FROM {table} ORDER BY id DESC LIMIT ?)",
+        (keep,),
+    )
+
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, check_same_thread=False)
@@ -70,6 +81,7 @@ def record_check(conn: sqlite3.Connection, *, failed_count: int, error: str | No
             "INSERT INTO checks (checked_at, failed_count, error) VALUES (?, ?, ?)",
             (_now(), failed_count, error),
         )
+        _prune(conn, "checks", _MAX_CHECK_ROWS)
         conn.commit()
 
 
@@ -81,23 +93,31 @@ def record_blocklist_event(
             "INSERT INTO blocklist_events (occurred_at, queue_id, title, messages) VALUES (?, ?, ?, ?)",
             (_now(), queue_id, title, messages),
         )
+        _prune(conn, "blocklist_events", _MAX_EVENT_ROWS)
         conn.commit()
 
 
+def _fetch_recent(conn: sqlite3.Connection, table: str, limit: int) -> list[sqlite3.Row]:
+    with _write_lock:
+        return conn.execute(
+            f"SELECT * FROM {table} ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+
 def get_last_check(conn: sqlite3.Connection) -> sqlite3.Row | None:
-    return conn.execute("SELECT * FROM checks ORDER BY id DESC LIMIT 1").fetchone()
+    with _write_lock:
+        return conn.execute("SELECT * FROM checks ORDER BY id DESC LIMIT 1").fetchone()
 
 
 def get_recent_events(conn: sqlite3.Connection, limit: int = 100) -> list[sqlite3.Row]:
-    return conn.execute(
-        "SELECT * FROM blocklist_events ORDER BY id DESC LIMIT ?", (limit,)
-    ).fetchall()
+    return _fetch_recent(conn, "blocklist_events", limit)
 
 
 def get_repeat_count(conn: sqlite3.Connection, album_id: int, reason: str) -> int:
-    row = conn.execute(
-        "SELECT count FROM repeat_counts WHERE album_id = ? AND reason = ?", (album_id, reason)
-    ).fetchone()
+    with _write_lock:
+        row = conn.execute(
+            "SELECT count FROM repeat_counts WHERE album_id = ? AND reason = ?", (album_id, reason)
+        ).fetchone()
     return row["count"] if row else 0
 
 
@@ -121,13 +141,12 @@ def record_blocklist_only_event(
             "VALUES (?, ?, ?, ?, ?)",
             (_now(), queue_id, album_id, title, messages),
         )
+        _prune(conn, "blocklist_only_events", _MAX_EVENT_ROWS)
         conn.commit()
 
 
 def get_recent_blocklist_only_events(conn: sqlite3.Connection, limit: int = 100) -> list[sqlite3.Row]:
-    return conn.execute(
-        "SELECT * FROM blocklist_only_events ORDER BY id DESC LIMIT ?", (limit,)
-    ).fetchall()
+    return _fetch_recent(conn, "blocklist_only_events", limit)
 
 
 def record_ignore_event(
@@ -145,13 +164,12 @@ def record_ignore_event(
             "VALUES (?, ?, ?, ?, ?, ?)",
             (_now(), queue_id, album_id, artist_id, title, messages),
         )
+        _prune(conn, "ignore_events", _MAX_EVENT_ROWS)
         conn.commit()
 
 
 def get_recent_ignore_events(conn: sqlite3.Connection, limit: int = 100) -> list[sqlite3.Row]:
-    return conn.execute(
-        "SELECT * FROM ignore_events ORDER BY id DESC LIMIT ?", (limit,)
-    ).fetchall()
+    return _fetch_recent(conn, "ignore_events", limit)
 
 
 def _now() -> str:
